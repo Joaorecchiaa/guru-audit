@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guru · Auditoria de Assinaturas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0F1117;
+    --surface:   #1A1D27;
+    --surface2:  #222638;
+    --border:    #2A2E42;
+    --lime:      #B5F23D;
+    --lime-dim:  #8cbf2a;
+    --red:       #FF4757;
+    --red-dim:   rgba(255,71,87,0.12);
+    --text:      #E8EAF0;
+    --muted:     #6B7090;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Inter', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Top bar ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .logo { font-family: var(--mono); font-weight: 700; font-size: 1.05rem; color: var(--lime); letter-spacing: -0.5px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .badge { margin-left: auto; font-size: .7rem; font-family: var(--mono); background: var(--surface2); color: var(--muted); padding: .25rem .6rem; border-radius: 4px; border: 1px solid var(--border); }
+
+  /* ── Layout ── */
+  .layout { display: flex; flex: 1; }
+
+  /* ── Sidebar ── */
+  aside {
+    width: 280px;
+    min-width: 280px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1.5rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .sidebar-section h3 {
+    font-size: .65rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .75rem;
+  }
+  .input-wrap { display: flex; flex-direction: column; gap: .4rem; }
+  .input-wrap label { font-size: .78rem; color: var(--muted); }
+  .input-wrap input, .input-wrap select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: .82rem;
+    padding: .5rem .7rem;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .input-wrap input:focus, .input-wrap select:focus { border-color: var(--lime); }
+  .input-wrap input[type=password] { letter-spacing: .12em; }
+
+  .btn-primary {
+    width: 100%;
+    padding: .65rem;
+    background: var(--lime);
+    color: #0F1117;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: .82rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: .03em;
+    transition: background .15s, transform .1s;
+  }
+  .btn-primary:hover { background: var(--lime-dim); }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+
+  .filter-row { display: flex; gap: .5rem; }
+  .filter-row .input-wrap { flex: 1; min-width: 0; }
+  .filter-row input[type=date] { min-width: 0; width: 100%; font-size: .72rem; padding: .5rem .4rem; }
+
+  /* ── Main ── */
+  main { flex: 1; padding: 1.75rem 2rem; overflow-x: auto; }
+
+  /* ── KPI cards ── */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+  }
+  .kpi.alert { border-color: var(--red); background: var(--red-dim); }
+  .kpi .kpi-label { font-size: .65rem; font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .4rem; }
+  .kpi .kpi-value { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi.alert .kpi-value { color: var(--red); }
+  .kpi .kpi-sub { font-size: .68rem; color: var(--muted); margin-top: .35rem; }
+
+  /* ── Section header ── */
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .section-head h2 { font-size: .9rem; font-weight: 600; }
+  .count-badge { font-size: .68rem; font-family: var(--mono); background: var(--red-dim); color: var(--red); padding: .2rem .5rem; border-radius: 4px; border: 1px solid rgba(255,71,87,.3); }
+  .count-ok { background: rgba(181,242,61,.08); color: var(--lime); border-color: rgba(181,242,61,.25); }
+
+  .search-box {
+    margin-left: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: .8rem;
+    padding: .4rem .75rem;
+    width: 220px;
+    outline: none;
+  }
+  .search-box:focus { border-color: var(--lime); }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: .55rem 1.1rem;
+    font-size: .8rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+    user-select: none;
+  }
+  .tab.active { color: var(--lime); border-color: var(--lime); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  thead { background: var(--surface); }
+  thead th {
+    padding: .7rem 1rem;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .65rem;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  tbody tr { border-top: 1px solid var(--border); transition: background .1s; }
+  tbody tr:hover { background: var(--surface); }
+  tbody tr.irregular { background: var(--red-dim); }
+  tbody tr.irregular:hover { background: rgba(255,71,87,.18); }
+  td {
+    padding: .65rem 1rem;
+    color: var(--text);
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mono { font-family: var(--mono); }
+  .amount-ok   { color: var(--lime); font-family: var(--mono); font-weight: 700; }
+  .amount-bad  { color: var(--red);  font-family: var(--mono); font-weight: 700; }
+  .pill {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border-radius: 20px;
+    font-size: .68rem;
+    font-family: var(--mono);
+  }
+  .pill-ok  { background: rgba(181,242,61,.12); color: var(--lime); border: 1px solid rgba(181,242,61,.3); }
+  .pill-bad { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,71,87,.3); }
+
+  /* ── States ── */
+  .state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; color: var(--muted); gap: 1rem; text-align: center; }
+  .state .icon { font-size: 2.5rem; }
+  .state p { font-size: .85rem; max-width: 340px; line-height: 1.5; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--lime); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress-bar { width: 200px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--lime); border-radius: 2px; transition: width .3s; }
+
+  .error-box { background: var(--red-dim); border: 1px solid rgba(255,71,87,.4); border-radius: 8px; padding: 1rem 1.25rem; font-size: .82rem; color: var(--red); line-height: 1.5; }
+
+  /* ── Pagination ── */
+  .pagination { display: flex; align-items: center; gap: .5rem; justify-content: flex-end; margin-top: 1rem; font-size: .78rem; font-family: var(--mono); color: var(--muted); }
+  .page-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: .3rem .6rem; cursor: pointer; font-family: var(--mono); font-size: .78rem; }
+  .page-btn:hover { border-color: var(--lime); color: var(--lime); }
+  .page-btn:disabled { opacity: .3; cursor: not-allowed; }
+  .page-info { padding: 0 .5rem; }
+
+  /* ── Export ── */
+  .btn-export { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: .75rem; padding: .4rem .8rem; border-radius: 6px; cursor: pointer; transition: border-color .15s; }
+  .btn-export:hover { border-color: var(--lime); color: var(--lime); }
+
+  .empty { text-align: center; padding: 3rem; color: var(--muted); font-family: var(--mono); font-size: .82rem; }
+
+  /* ── Account switcher ── */
+  .account-btns { display: flex; gap: .4rem; }
+  .acc-btn {
+    padding: .4rem .9rem;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: .78rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: .06em;
+    transition: all .15s;
+  }
+  .acc-btn:hover { border-color: var(--lime); color: var(--lime); }
+  .acc-btn.active { background: var(--lime); color: #0F1117; border-color: var(--lime); }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;flex-direction:column;gap:.1rem;">
+    <div class="logo">guru<span>/</span>audit <span style="font-size:.7rem;font-weight:400;color:var(--muted);">· Board Academy</span></div>
+  </div>
+  <div class="badge" id="lastFetch">—</div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sidebar-section">
+      <h3>Conta</h3>
+      <div class="account-btns">
+        <button class="acc-btn active" id="btn-ba" onclick="switchAccount('ba')">BA</button>
+        <button class="acc-btn" id="btn-ibrem" onclick="switchAccount('ibrem')">IBREM</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Próxima renovação</h3>
+      <div class="filter-row">
+        <div class="input-wrap">
+          <label>A partir de</label>
+          <input type="date" id="dateFrom">
+        </div>
+        <div class="input-wrap">
+          <label>Até</label>
+          <input type="date" id="dateTo">
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Valores válidos (R$)</h3>
+      <div class="input-wrap">
+        <label>Valores aceitos (separados por vírgula)</label>
+        <input type="text" id="validAmounts" value="990, 1990">
+      </div>
+    </div>
+
+    <button class="btn-primary" id="fetchBtn" onclick="startFetch()">
+      ▶ Buscar assinaturas
+    </button>
+
+    <div id="progressArea" style="display:none; gap:.75rem; flex-direction:column;">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div style="font-size:.72rem;color:var(--muted);font-family:var(--mono)" id="progressLabel">Buscando página 1…</div>
+    </div>
+
+
+  </aside>
+
+  <main>
+    <div id="appState">
+      <div class="state">
+        <div class="icon">🔍</div>
+        <p>Configure o token e o período desejado, depois clique em <strong>Buscar assinaturas</strong>.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── Estado global ──
+let currentAccount = 'ba';
+let allSubs = [];
+let currentTab = 'irregular';
+let sortCol = 'amount';
+let sortDir = 'asc';
+let searchQuery = '';
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
+// ── Troca de conta ──
+function switchAccount(account) {
+  currentAccount = account;
+  document.querySelectorAll('.acc-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + account).classList.add('active');
+  allSubs = [];
+  document.getElementById('appState').innerHTML = `
+    <div class="state">
+      <div class="icon">🔍</div>
+      <p>Conta alterada para <strong>${account.toUpperCase()}</strong>. Clique em <strong>Buscar assinaturas</strong>.</p>
+    </div>`;
+}
+
+// ── Inicialização ──
+window.onload = () => {
+  document.getElementById('dateFrom').value = '2025-06-30';
+  document.getElementById('dateTo').value = '2026-06-30';
+};
+
+// ── Fetch ──
+async function startFetch() {
+  const token = ''; // token gerenciado pelo servidor via env vars
+
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo   = document.getElementById('dateTo').value;
+  const validRaw = document.getElementById('validAmounts').value;
+  const validAmounts = validRaw.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+
+  document.getElementById('fetchBtn').disabled = true;
+  document.getElementById('progressArea').style.display = 'flex';
+  setProgress(0, 'Iniciando…');
+  renderLoading();
+
+  try {
+    const subs = await fetchAll(token, dateFrom, dateTo, validAmounts);
+    allSubs = subs;
+    document.getElementById('lastFetch').textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR');
+    currentPage = 1;
+    renderDashboard(validAmounts);
+  } catch(e) {
+    renderError(e.message);
+  } finally {
+    document.getElementById('fetchBtn').disabled = false;
+    document.getElementById('progressArea').style.display = 'none';
+  }
+}
+
+async function fetchAll(token, dateFrom, dateTo, validAmounts) {
+  let all = [], pageNum = 1;
+
+  // Divide o período em janelas de 170 dias (limite da Guru é 180)
+  const windows = [];
+  let winStart = new Date(dateFrom);
+  const end = new Date(dateTo);
+  while (winStart < end) {
+    const winEnd = new Date(winStart);
+    winEnd.setDate(winEnd.getDate() + 170);
+    if (winEnd > end) winEnd.setTime(end.getTime());
+    windows.push([winStart.toISOString().split('T')[0], winEnd.toISOString().split('T')[0]]);
+    winStart = new Date(winEnd);
+    winStart.setDate(winStart.getDate() + 1);
+  }
+
+  for (let w = 0; w < windows.length; w++) {
+    const [wFrom, wTo] = windows[w];
+    let cursor = null, hasMore = true;
+
+    while (hasMore) {
+      const pct = Math.round(((w / windows.length) + (1 / windows.length) * 0.4) * 40);
+      setProgress(pct, `Buscando assinaturas: janela ${w+1}/${windows.length} (${all.length} carregadas)`);
+
+      const params = new URLSearchParams();
+      params.append('subscription_status[]', 'active');
+      params.set('next_cycle_at_ini', wFrom);
+      params.set('next_cycle_at_end', wTo);
+      if (cursor) params.set('cursor', cursor);
+
+      const resp = await fetch(`/api/subscriptions?${params}&account=${currentAccount}`);
+      const data = await resp.json();
+
+      if (!resp.ok) throw new Error(data.error || `Erro HTTP ${resp.status}`);
+
+      const items = data.items || [];
+      all.push(...items);
+      cursor  = data.next_cursor || null;
+      hasMore = !!cursor && items.length > 0;
+      pageNum++;
+    }
+  }
+
+  setProgress(40, `${all.length} assinaturas encontradas. Buscando valores…`);
+
+  // ── Etapa 2: buscar next_cycle_value de cada assinatura via /subscriptions/{code} ──
+  const results = [];
+  const CONCURRENCY = 8;
+  let completed = 0;
+
+  async function processOne(sub) {
+    const subCode = sub.subscription_code || sub.id;
+    const startedAt = sub.started_at
+      ? new Date(sub.started_at * 1000).toISOString().split('T')[0]
+      : null;
+
+    let amount = 0;
+    try {
+      const resp = await fetch(`/api/subscription_detail?code=${encodeURIComponent(subCode)}&account=${currentAccount}`);
+      const data = await resp.json();
+      if (resp.ok && data.next_cycle_value != null) {
+        amount = Number(data.next_cycle_value);
+      }
+    } catch (e) {
+      // mantém amount = 0 em caso de erro pontual
+    }
+
+    completed++;
+    if (completed % 5 === 0 || completed === all.length) {
+      const pct = 40 + Math.round((completed / all.length) * 55);
+      setProgress(Math.min(pct, 95), `Buscando valores: ${completed}/${all.length} assinaturas…`);
+    }
+
+    results.push({
+      id:           sub.id || sub.subscription_code || '—',
+      customer:     sub.contact?.name || '—',
+      email:        sub.contact?.email || '—',
+      offer:        sub.product?.name || '—',
+      amount,
+      status_ok:    validAmounts.includes(amount),
+      next_billing: sub.next_cycle_at || '—',
+      created_at:   startedAt || '—',
+    });
+  }
+
+  // Processa em lotes com concorrência limitada
+  const queue = [...all];
+  async function worker() {
+    while (queue.length > 0) {
+      const sub = queue.shift();
+      if (sub) await processOne(sub);
+    }
+  }
+  await Promise.all(Array.from({length: CONCURRENCY}, worker));
+
+  setProgress(100, `${results.length} assinaturas processadas.`);
+  return results;
+}
+
+
+
+// ── Render ──
+function renderLoading() {
+  document.getElementById('appState').innerHTML = `
+    <div class="state">
+      <div class="spinner"></div>
+      <p>Buscando assinaturas e seus valores na API da Guru…<br><span style="font-size:.7rem;opacity:.7">Isso pode levar alguns minutos (uma consulta por assinatura).</span></p>
+    </div>`;
+}
+
+function renderError(msg) {
+  document.getElementById('appState').innerHTML = `
+    <div class="state">
+      <div class="icon">⚠️</div>
+      <div class="error-box">${msg}</div>
+      <p style="font-size:.75rem">Verifique o token e tente novamente.</p>
+    </div>`;
+}
+
+function renderDashboard(validAmounts) {
+  const irregular = allSubs.filter(s => !s.status_ok && s.amount > 0);
+  const ok        = allSubs.filter(s => s.status_ok);
+  const amounts   = [...new Set(allSubs.map(s => s.amount).filter(Boolean))].sort((a,b)=>a-b);
+
+  // KPIs
+  const kpis = `
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Total ativas</div><div class="kpi-value">${allSubs.length}</div><div class="kpi-sub">no período</div></div>
+    <div class="kpi alert"><div class="kpi-label">Irregulares</div><div class="kpi-value">${irregular.length}</div><div class="kpi-sub">fora de R$ ${validAmounts.join(' / ')}</div></div>
+    <div class="kpi"><div class="kpi-label">Regulares</div><div class="kpi-value">${ok.length}</div><div class="kpi-sub">valor correto</div></div>
+    <div class="kpi"><div class="kpi-label">Valores únicos</div><div class="kpi-value">${amounts.length}</div><div class="kpi-sub">valores distintos encontrados</div></div>
+    <div class="kpi"><div class="kpi-label">% Irregulares</div><div class="kpi-value">${allSubs.length ? ((irregular.length/allSubs.length)*100).toFixed(1) : 0}%</div><div class="kpi-sub">do total</div></div>
+  </div>`;
+
+  // Tabs + busca
+  const controls = `
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <div class="tabs" style="margin-bottom:0;border-bottom:none;">
+      <div class="tab ${currentTab==='irregular'?'active':''}" onclick="switchTab('irregular')">
+        ⚠ Irregulares <span style="margin-left:.3rem;font-size:.7rem;opacity:.7">${irregular.length}</span>
+      </div>
+      <div class="tab ${currentTab==='all'?'active':''}" onclick="switchTab('all')">
+        Todas <span style="margin-left:.3rem;font-size:.7rem;opacity:.7">${allSubs.length}</span>
+      </div>
+      <div class="tab ${currentTab==='ok'?'active':''}" onclick="switchTab('ok')">
+        ✓ Regulares <span style="margin-left:.3rem;font-size:.7rem;opacity:.7">${ok.length}</span>
+      </div>
+    </div>
+    <input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onSearch(this.value)" value="${searchQuery}">
+    <button class="btn-export" onclick="exportCSV()">⬇ Exportar CSV</button>
+  </div>`;
+
+  document.getElementById('appState').innerHTML = kpis + controls + `<div id="tableArea"></div>`;
+  renderTable();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  currentPage = 1;
+  searchQuery = '';
+  document.querySelector('.search-box').value = '';
+  // Atualiza tabs
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  renderTable();
+}
+
+function onSearch(q) {
+  searchQuery = q.toLowerCase();
+  currentPage = 1;
+  renderTable();
+}
+
+function getFiltered() {
+  let data = allSubs;
+  if (currentTab === 'irregular') data = data.filter(s => !s.status_ok && s.amount > 0);
+  if (currentTab === 'ok')        data = data.filter(s => s.status_ok);
+  if (searchQuery) {
+    data = data.filter(s =>
+      s.customer.toLowerCase().includes(searchQuery) ||
+      s.email.toLowerCase().includes(searchQuery) ||
+      s.offer.toLowerCase().includes(searchQuery) ||
+      String(s.amount).includes(searchQuery)
+    );
+  }
+  // Sort
+  data = [...data].sort((a,b) => {
+    let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+    if (typeof va === 'number') return sortDir === 'asc' ? va-vb : vb-va;
+    return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  return data;
+}
+
+function renderTable() {
+  const filtered = getFiltered();
+  const total = filtered.length;
+  const totalPgs = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > totalPgs) currentPage = totalPgs;
+  const page = filtered.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+
+  const cols = [
+    {key:'id',label:'ID'},
+    {key:'customer',label:'Cliente'},
+    {key:'email',label:'Email'},
+    {key:'offer',label:'Oferta'},
+    {key:'amount',label:'Valor'},
+    {key:'next_billing',label:'Próx. cobrança'},
+    {key:'created_at',label:'Criado em'},
+  ];
+
+  const sortArrow = (col) => col === sortCol ? (sortDir==='asc'?' ↑':' ↓') : '';
+
+  const thead = `<thead><tr>${cols.map(c=>`<th onclick="sortBy('${c.key}')">${c.label}${sortArrow(c.key)}</th>`).join('')}</tr></thead>`;
+
+  const tbody = page.length === 0
+    ? `<tr><td colspan="${cols.length}" class="empty">Nenhuma assinatura encontrada.</td></tr>`
+    : page.map(s => {
+        const amtClass = s.status_ok ? 'amount-ok' : 'amount-bad';
+        const pill = s.status_ok
+          ? `<span class="pill pill-ok">✓ ok</span>`
+          : `<span class="pill pill-bad">✗ irregular</span>`;
+        const fmt = (v) => v && v !== '—' ? new Date(v).toLocaleDateString('pt-BR') : '—';
+        return `<tr class="${s.status_ok?'':'irregular'}">
+          <td class="mono" style="color:var(--muted);font-size:.72rem">${s.id}</td>
+          <td title="${s.customer}">${s.customer}</td>
+          <td title="${s.email}" style="color:var(--muted)">${s.email}</td>
+          <td title="${s.offer}">${s.offer}</td>
+          <td class="${amtClass}">R$ ${s.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="mono" style="font-size:.75rem">${fmt(s.next_billing)}</td>
+          <td class="mono" style="font-size:.75rem;color:var(--muted)">${fmt(s.created_at)}</td>
+        </tr>`;
+      }).join('');
+
+  const pagination = `
+  <div class="pagination">
+    <span>${total} resultado(s)</span>
+    <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>‹</button>
+    <span class="page-info">${currentPage} / ${totalPgs}</span>
+    <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage>=totalPgs?'disabled':''}>›</button>
+  </div>`;
+
+  document.getElementById('tableArea').innerHTML = `
+    <div class="table-wrap"><table>${thead}<tbody>${tbody}</tbody></table></div>
+    ${pagination}`;
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'asc'; }
+  renderTable();
+}
+
+function goPage(p) { currentPage = p; renderTable(); }
+
+// ── CSV ──
+function exportCSV() {
+  const data = getFiltered();
+  const headers = ['ID','Cliente','Email','Oferta','Valor','Status','Próx Cobrança','Criado em'];
+  const rows = data.map(s => [
+    s.id, s.customer, s.email, s.offer,
+    s.amount.toFixed(2).replace('.',','),
+    s.status_ok ? 'OK' : 'IRREGULAR',
+    s.next_billing, s.created_at
+  ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'));
+  const csv = [headers.join(';'), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `guru_audit_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── Progress helper ──
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+</script>
+<footer style="text-align:left;padding:.6rem 1.5rem;font-family:var(--mono);font-size:.62rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;border-top:1px solid var(--border);background:var(--surface);">
+  Inteligência Comercial · Board Academy
+</footer>
+</body>
+</html>
