@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Autenticando…</title>
+<style>
+  body { background: #0F1117; color: #E8EAF0; font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+  .box { text-align: center; }
+  .spinner { width: 32px; height: 32px; border: 3px solid #2A2E42; border-top-color: #B5F23D; border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  p { color: #6B7090; font-size: .82rem; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="spinner"></div>
+  <p>Autenticando…</p>
+</div>
+<script>
+  // Pega o hash da URL após o redirect do Azure AD
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  const token = params.get('access_token') || params.get('id_token');
+  const error = params.get('error');
+
+  if (error) {
+    document.querySelector('p').textContent = 'Acesso negado: ' + (params.get('error_description') || error);
+  } else if (token) {
+    // Salva o token e redireciona pro painel
+    sessionStorage.setItem('azure_token', token);
+    window.location.href = '/';
+  } else {
+    document.querySelector('p').textContent = 'Erro na autenticação. Tente novamente.';
+    setTimeout(() => window.location.href = '/', 2000);
+  }
+</script>
+</body>
+</html>
