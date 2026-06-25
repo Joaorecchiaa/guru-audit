@@ -2,11 +2,12 @@
   "version": 2,
   "builds": [
     { "src": "api/*.py", "use": "@vercel/python" },
-    { "src": "public/index.html", "use": "@vercel/static" }
+    { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/subscriptions", "dest": "/api/subscriptions.py" },
     { "src": "/api/subscription_detail", "dest": "/api/subscription_detail.py" },
+    { "src": "/callback.html", "dest": "/public/callback.html" },
     { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
