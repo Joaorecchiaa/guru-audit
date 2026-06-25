@@ -773,6 +773,13 @@ function setProgress(pct, label) {
   // Expõe funções que o HTML chama diretamente
   window.loginMicrosoft = function() { msalInstance.loginRedirect(loginRequest); };
   window.logout = function() { msalInstance.logoutRedirect(); };
+  window.startFetch = startFetch;
+  window.switchAccount = switchAccount;
+  window.switchTab = switchTab;
+  window.onSearch = onSearch;
+  window.sortBy = sortBy;
+  window.goPage = goPage;
+  window.exportCSV = exportCSV;
 
   // Inicia o dashboard após MSAL carregado
   initDashboard();
