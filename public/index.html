@@ -770,6 +770,10 @@ function setProgress(pct, label) {
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressLabel').textContent = label;
 }
+  // Expõe funções que o HTML chama diretamente
+  window.loginMicrosoft = function() { msalInstance.loginRedirect(loginRequest); };
+  window.logout = function() { msalInstance.logoutRedirect(); };
+
   // Inicia o dashboard após MSAL carregado
   initDashboard();
 } // fim initApp
