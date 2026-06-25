@@ -349,8 +349,17 @@
   </main>
 </div>
 
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <script>
+// Carrega MSAL dinamicamente e só executa o app depois
+(function() {
+  var s = document.createElement('script');
+  s.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
+  s.onload = function() { initApp(); };
+  s.onerror = function() { document.body.innerHTML = '<div style="color:#ff4757;font-family:monospace;padding:2rem">Erro ao carregar biblioteca de autenticação.</div>'; };
+  document.head.appendChild(s);
+})();
+
+function initApp() {
 // ── Estado global ──
 let currentAccount = 'ba';
 let allSubs = [];
@@ -440,7 +449,7 @@ function switchAccount(account) {
 }
 
 // ── Inicialização ──
-window.onload = async () => {
+async function initDashboard() {
   const account = await checkAuth();
   if (!account) return;
 
@@ -453,7 +462,7 @@ window.onload = async () => {
   badge.style.cursor = 'pointer';
   badge.title = 'Clique para sair';
   badge.onclick = logout;
-};
+}
 
 // ── Fetch ──
 async function startFetch() {
@@ -761,6 +770,9 @@ function setProgress(pct, label) {
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressLabel').textContent = label;
 }
+  // Inicia o dashboard após MSAL carregado
+  initDashboard();
+} // fim initApp
 </script>
 <footer style="text-align:left;padding:.6rem 1.5rem;font-family:var(--mono);font-size:.62rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;border-top:1px solid var(--border);background:var(--surface);">
   Inteligência Comercial · Board Academy
