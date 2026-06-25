@@ -353,7 +353,7 @@
 // Carrega MSAL dinamicamente e só executa o app depois
 (function() {
   var s = document.createElement('script');
-  s.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
+  s.src = 'https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js';
   s.onload = function() { initApp(); };
   s.onerror = function() { document.body.innerHTML = '<div style="color:#ff4757;font-family:monospace;padding:2rem">Erro ao carregar biblioteca de autenticação.</div>'; };
   document.head.appendChild(s);
