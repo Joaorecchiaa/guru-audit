@@ -6,6 +6,7 @@
 <title>Guru · Auditoria de Assinaturas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -350,52 +351,32 @@
 </div>
 
 <script>
-// ── Auth Azure AD ──
-const AZURE_CLIENT_ID  = '85f7de7e-7983-4c0f-92c2-376cfb34df68';
-const AZURE_TENANT_ID  = 'ea06a4f8-af74-49ad-ade9-90eedd9d720e';
-const REDIRECT_URI     = 'https://guru-audit.vercel.app/callback.html';
-const ALLOWED_DOMAIN   = 'boardacademy.com.br';
+// ── Auth MSAL ──
+const AZURE_CLIENT_ID = '85f7de7e-7983-4c0f-92c2-376cfb34df68';
+const AZURE_TENANT_ID = 'ea06a4f8-af74-49ad-ade9-90eedd9d720e';
+const ALLOWED_DOMAIN  = 'boardacademy.com.br';
+
+const msalConfig = {
+  auth: {
+    clientId: AZURE_CLIENT_ID,
+    authority: `https://login.microsoftonline.com/${AZURE_TENANT_ID}`,
+    redirectUri: 'https://guru-audit.vercel.app/',
+  },
+  cache: {
+    cacheLocation: 'sessionStorage',
+    storeAuthStateInCookie: false,
+  }
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const loginRequest = { scopes: ['openid', 'email', 'profile', 'User.Read'] };
 
 function loginMicrosoft() {
-  const authUrl = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/authorize` +
-    `?client_id=${AZURE_CLIENT_ID}` +
-    `&response_type=id_token` +
-    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-    `&scope=openid%20email%20profile` +
-    `&response_mode=fragment` +
-    `&nonce=${Math.random().toString(36).substring(2)}`;
-  window.location.href = authUrl;
+  msalInstance.loginRedirect(loginRequest);
 }
 
-function parseJwt(token) {
-  try {
-    return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-  } catch { return null; }
-}
-
-function checkAuth() {
-  const token = sessionStorage.getItem('azure_token');
-  if (!token) { showAuthOverlay(); return false; }
-
-  const payload = parseJwt(token);
-  if (!payload) { showAuthOverlay(); return false; }
-
-  // Verifica expiração
-  if (payload.exp && Date.now() / 1000 > payload.exp) {
-    sessionStorage.removeItem('azure_token');
-    showAuthOverlay();
-    return false;
-  }
-
-  // Verifica domínio
-  const email = payload.email || payload.preferred_username || '';
-  if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
-    sessionStorage.removeItem('azure_token');
-    showAuthOverlay('Acesso restrito a @' + ALLOWED_DOMAIN);
-    return false;
-  }
-
-  return true;
+function logout() {
+  msalInstance.logoutRedirect();
 }
 
 function showAuthOverlay(msg) {
@@ -406,9 +387,31 @@ function showAuthOverlay(msg) {
   }
 }
 
-function logout() {
-  sessionStorage.removeItem('azure_token');
-  window.location.href = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent('https://guru-audit.vercel.app/')}`;
+async function checkAuth() {
+  // Processa redirect de volta do login
+  try {
+    await msalInstance.handleRedirectPromise();
+  } catch(e) {
+    showAuthOverlay('Erro no login: ' + e.message);
+    return false;
+  }
+
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts.length) {
+    showAuthOverlay();
+    return false;
+  }
+
+  const account = accounts[0];
+  const email = account.username || '';
+
+  if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
+    msalInstance.logoutRedirect();
+    showAuthOverlay('Acesso restrito a @' + ALLOWED_DOMAIN);
+    return false;
+  }
+
+  return account;
 }
 
 // ── Estado global ──
@@ -435,22 +438,19 @@ function switchAccount(account) {
 }
 
 // ── Inicialização ──
-window.onload = () => {
-  if (!checkAuth()) return;
+window.onload = async () => {
+  const account = await checkAuth();
+  if (!account) return;
+
   document.getElementById('dateFrom').value = '2025-06-30';
   document.getElementById('dateTo').value = '2026-06-30';
 
-  // Mostra email do usuário logado no header
-  const token = sessionStorage.getItem('azure_token');
-  const payload = parseJwt(token);
-  if (payload) {
-    const email = payload.email || payload.preferred_username || '';
-    const badge = document.getElementById('lastFetch');
-    badge.textContent = email;
-    badge.style.cursor = 'pointer';
-    badge.title = 'Clique para sair';
-    badge.onclick = logout;
-  }
+  // Mostra email no badge do header
+  const badge = document.getElementById('lastFetch');
+  badge.textContent = account.username;
+  badge.style.cursor = 'pointer';
+  badge.title = 'Clique para sair';
+  badge.onclick = logout;
 };
 
 // ── Fetch ──
