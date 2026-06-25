@@ -351,6 +351,16 @@
 </div>
 
 <script>
+// ── Estado global ──
+let currentAccount = 'ba';
+let allSubs = [];
+let currentTab = 'irregular';
+let sortCol = 'amount';
+let sortDir = 'asc';
+let searchQuery = '';
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
 // ── Auth MSAL ──
 const AZURE_CLIENT_ID = '85f7de7e-7983-4c0f-92c2-376cfb34df68';
 const AZURE_TENANT_ID = 'ea06a4f8-af74-49ad-ade9-90eedd9d720e';
@@ -414,15 +424,7 @@ async function checkAuth() {
   return account;
 }
 
-// ── Estado global ──
-let currentAccount = 'ba';
-let allSubs = [];
-let currentTab = 'irregular';
-let sortCol = 'amount';
-let sortDir = 'asc';
-let searchQuery = '';
-let currentPage = 1;
-const PAGE_SIZE = 50;
+
 
 // ── Troca de conta ──
 function switchAccount(account) {
