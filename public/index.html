@@ -342,8 +342,7 @@
   <main>
     <div id="appState">
       <div class="state">
-        <div class="icon">🔍</div>
-        <p>Configure o token e o período desejado, depois clique em <strong>Buscar assinaturas</strong>.</p>
+        <p>Configure o período desejado, depois clique em <strong>Buscar assinaturas</strong>.</p>
       </div>
     </div>
   </main>
@@ -443,7 +442,6 @@ function switchAccount(account) {
   allSubs = [];
   document.getElementById('appState').innerHTML = `
     <div class="state">
-      <div class="icon">🔍</div>
       <p>Conta alterada para <strong>${account.toUpperCase()}</strong>. Clique em <strong>Buscar assinaturas</strong>.</p>
     </div>`;
 }
@@ -605,7 +603,6 @@ function renderLoading() {
 function renderError(msg) {
   document.getElementById('appState').innerHTML = `
     <div class="state">
-      <div class="icon">⚠️</div>
       <div class="error-box">${msg}</div>
       <p style="font-size:.75rem">Verifique o token e tente novamente.</p>
     </div>`;
