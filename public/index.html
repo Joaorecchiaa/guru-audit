@@ -565,6 +565,7 @@ async function fetchAll(token, dateFrom, dateTo, validAmounts) {
     results.push({
       id:           sub.id || sub.subscription_code || '—',
       subscription_code: sub.subscription_code || sub.id || '—',
+      status:       sub.last_status || '—',
       customer:     sub.contact?.name || '—',
       email:        sub.contact?.email || '—',
       offer:        sub.product?.name || '—',
@@ -693,6 +694,7 @@ function renderTable() {
   const cols = [
     {key:'customer',label:'Cliente'},
     {key:'email',label:'Email'},
+    {key:'status',label:'Status'},
     {key:'offer',label:'Oferta'},
     {key:'amount',label:'Valor'},
     {key:'next_billing',label:'Próx. cobrança'},
@@ -710,10 +712,21 @@ function renderTable() {
         const pill = s.status_ok
           ? `<span class="pill pill-ok">✓ ok</span>`
           : `<span class="pill pill-bad">✗ irregular</span>`;
+        const statusMap = {
+          'active':   ['Ativo',      'color:#4CAF50;background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.3)'],
+          'cancelled':['Cancelado',  'color:#FF4757;background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3)'],
+          'canceled': ['Cancelado',  'color:#FF4757;background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3)'],
+          'pastdue':  ['Inadimplente','color:#FFA500;background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3)'],
+          'ended':    ['Encerrado',  'color:#6B7090;background:rgba(107,112,144,.12);border:1px solid rgba(107,112,144,.3)'],
+          'trialing': ['Trial',      'color:#00BCD4;background:rgba(0,188,212,.12);border:1px solid rgba(0,188,212,.3)'],
+        };
+        const [statusLabel, statusStyle] = statusMap[s.status] || [s.status, 'color:var(--muted)'];
+        const statusPill = `<span style="font-family:var(--mono);font-size:.68rem;padding:.15rem .5rem;border-radius:20px;${statusStyle}">${statusLabel}</span>`;
         const fmt = (v) => v && v !== '—' ? new Date(v).toLocaleDateString('pt-BR') : '—';
         return `<tr class="${s.status_ok?'':'irregular'}">
           <td title="${s.customer}"><a href="https://digitalmanager.guru/admin/subscriptions/${s.subscription_code || s.id}" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--lime);opacity:.9;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.9">${s.customer}</a></td>
           <td title="${s.email}" style="color:var(--muted)">${s.email}</td>
+          <td>${statusPill}</td>
           <td title="${s.offer}">${s.offer}</td>
           <td class="${amtClass}">R$ ${s.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
           <td class="mono" style="font-size:.75rem">${fmt(s.next_billing)}</td>
