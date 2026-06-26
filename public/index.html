@@ -564,6 +564,7 @@ async function fetchAll(token, dateFrom, dateTo, validAmounts) {
 
     results.push({
       id:           sub.id || sub.subscription_code || '—',
+      subscription_code: sub.subscription_code || sub.id || '—',
       customer:     sub.contact?.name || '—',
       email:        sub.contact?.email || '—',
       offer:        sub.product?.name || '—',
@@ -711,7 +712,7 @@ function renderTable() {
           : `<span class="pill pill-bad">✗ irregular</span>`;
         const fmt = (v) => v && v !== '—' ? new Date(v).toLocaleDateString('pt-BR') : '—';
         return `<tr class="${s.status_ok?'':'irregular'}">
-          <td title="${s.customer}"><a href="https://digitalmanager.guru/admin/subscriptions/${s.id}" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--lime);opacity:.9;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.9">${s.customer}</a></td>
+          <td title="${s.customer}"><a href="https://digitalmanager.guru/admin/subscriptions/${s.subscription_code || s.id}" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--lime);opacity:.9;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.9">${s.customer}</a></td>
           <td title="${s.email}" style="color:var(--muted)">${s.email}</td>
           <td title="${s.offer}">${s.offer}</td>
           <td class="${amtClass}">R$ ${s.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
