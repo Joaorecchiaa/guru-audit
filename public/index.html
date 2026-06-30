@@ -342,11 +342,11 @@
           Atrasada (inadimplente)
         </label>
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
-          <input type="checkbox" class="status-filter" value="cancelled" style="accent-color:var(--lime);">
+          <input type="checkbox" class="status-filter" value="canceled" style="accent-color:var(--lime);">
           Cancelado
         </label>
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
-          <input type="checkbox" class="status-filter" value="ended" style="accent-color:var(--lime);">
+          <input type="checkbox" class="status-filter" value="inactive" style="accent-color:var(--lime);">
           Inativo
         </label>
       </div>
@@ -749,12 +749,13 @@ function renderTable() {
           ? `<span class="pill pill-ok">✓ ok</span>`
           : `<span class="pill pill-bad">✗ irregular</span>`;
         const statusMap = {
-          'active':   ['Ativo',      'color:#4CAF50;background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.3)'],
-          'cancelled':['Cancelado',  'color:#FF4757;background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3)'],
-          'canceled': ['Cancelado',  'color:#FF4757;background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3)'],
-          'pastdue':  ['Inadimplente','color:#FFA500;background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3)'],
-          'ended':    ['Encerrado',  'color:#6B7090;background:rgba(107,112,144,.12);border:1px solid rgba(107,112,144,.3)'],
-          'trialing': ['Trial',      'color:#00BCD4;background:rgba(0,188,212,.12);border:1px solid rgba(0,188,212,.3)'],
+          'active':   ['Ativo',       'color:#4CAF50;background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.3)'],
+          'canceled': ['Cancelado',   'color:#FF4757;background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3)'],
+          'pastdue':  ['Atrasada',    'color:#FFA500;background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3)'],
+          'inactive': ['Inativo',     'color:#6B7090;background:rgba(107,112,144,.12);border:1px solid rgba(107,112,144,.3)'],
+          'expired':  ['Expirado',    'color:#6B7090;background:rgba(107,112,144,.12);border:1px solid rgba(107,112,144,.3)'],
+          'started':  ['Iniciada',    'color:#00BCD4;background:rgba(0,188,212,.12);border:1px solid rgba(0,188,212,.3)'],
+          'trial':    ['Trial',       'color:#00BCD4;background:rgba(0,188,212,.12);border:1px solid rgba(0,188,212,.3)'],
         };
         const [statusLabel, statusStyle] = statusMap[s.status] || [s.status, 'color:var(--muted)'];
         const statusPill = `<span style="font-family:var(--mono);font-size:.68rem;padding:.15rem .5rem;border-radius:20px;${statusStyle}">${statusLabel}</span>`;
