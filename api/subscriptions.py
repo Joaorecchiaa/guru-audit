@@ -22,10 +22,10 @@ class handler(BaseHTTPRequestHandler):
         date_from = params.get("next_cycle_at_ini", [""])[0]
         date_to   = params.get("next_cycle_at_end", [""])[0]
         cursor    = params.get("cursor", [""])[0]
-        status    = params.get("subscription_status", ["active"])[0]
+        statuses  = params.get("subscription_status[]", ["active"])
 
-        api_params = [
-            ("subscription_status[]", status),
+        api_params = [("subscription_status[]", st) for st in statuses]
+        api_params += [
             ("next_cycle_at_ini", date_from),
             ("next_cycle_at_end", date_to),
             ("cursor", cursor),
