@@ -342,7 +342,7 @@
           Atrasada (inadimplente)
         </label>
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
-          <input type="checkbox" class="status-filter" value="cancelled,canceled" style="accent-color:var(--lime);">
+          <input type="checkbox" class="status-filter" value="cancelled" style="accent-color:var(--lime);">
           Cancelado
         </label>
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
@@ -541,7 +541,7 @@ async function fetchAll(token, dateFrom, dateTo, validAmounts) {
 
       const params = new URLSearchParams();
       const selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
-        .flatMap(cb => cb.value.split(','));
+        .map(cb => cb.value);
       const statusesToUse = selectedStatuses.length ? selectedStatuses : ['active'];
       statusesToUse.forEach(st => params.append('subscription_status[]', st));
       params.set('next_cycle_at_ini', wFrom);
@@ -639,6 +639,13 @@ function renderError(msg) {
 }
 
 function renderDashboard(validAmounts) {
+  if (allSubs.length === 0) {
+    document.getElementById('appState').innerHTML = `
+      <div class="state">
+        <p>Nenhuma assinatura encontrada para os filtros selecionados.<br><span style="font-size:.7rem;opacity:.7">Tente ajustar o período, valores ou status.</span></p>
+      </div>`;
+    return;
+  }
   const irregular = allSubs.filter(s => !s.status_ok && s.amount > 0);
   const ok        = allSubs.filter(s => s.status_ok);
   const amounts   = [...new Set(allSubs.map(s => s.amount).filter(Boolean))].sort((a,b)=>a-b);
