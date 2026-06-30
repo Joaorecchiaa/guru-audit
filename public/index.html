@@ -332,6 +332,7 @@
 
     <div class="sidebar-section">
       <h3>Status</h3>
+      <button type="button" onclick="toggleAllStatus()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:.68rem;padding:.3rem .6rem;border-radius:5px;cursor:pointer;margin-bottom:.5rem;width:100%;" onmouseover="this.style.borderColor='var(--lime)';this.style.color='var(--lime)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">Selecionar todas</button>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
           <input type="checkbox" class="status-filter" value="active" checked style="accent-color:var(--lime);">
@@ -460,6 +461,13 @@ async function checkAuth() {
 
 
 // ── Troca de conta ──
+function toggleAllStatus() {
+  const boxes = document.querySelectorAll('.status-filter');
+  const allChecked = Array.from(boxes).every(cb => cb.checked);
+  boxes.forEach(cb => cb.checked = !allChecked);
+}
+window.toggleAllStatus = toggleAllStatus;
+
 function switchAccount(account) {
   currentAccount = account;
   document.querySelectorAll('.acc-btn').forEach(b => b.classList.remove('active'));
@@ -476,8 +484,7 @@ async function initDashboard() {
   const account = await checkAuth();
   if (!account) return;
 
-  document.getElementById('dateFrom').value = '2025-06-30';
-  document.getElementById('dateTo').value = '2026-06-30';
+  // Datas ficam em branco - usuário escolhe
 
   // Mostra email no badge do header
   const badge = document.getElementById('lastFetch');
