@@ -279,6 +279,7 @@
 <div id="authOverlay" style="display:none;">
   <div class="auth-box">
     <div style="background:#0d0d0d;border-bottom:2px solid #F0C040;padding:14px;display:flex;align-items:center;justify-content:center;gap:10px;margin:-0rem -2rem 1.5rem -2rem;width:calc(100% + 4rem);">
+      <div style="width:24px;height:24px;background:linear-gradient(135deg,#F0C040,#c49b2e);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#000;font-family:Georgia,serif;">B</div>
       <span style="font-size:13px;font-weight:600;color:#ffffff;letter-spacing:.06em;">Board Academy</span>
     </div>
     <div class="auth-logo">GURU<span style="color:var(--muted)"> - </span>AUDIT</div>
@@ -326,6 +327,28 @@
       <div class="input-wrap">
         <label>Valores aceitos (separados por vírgula)</label>
         <input type="text" id="validAmounts" value="990, 1990">
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Status</h3>
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
+          <input type="checkbox" class="status-filter" value="active" checked style="accent-color:var(--lime);">
+          Ativo
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
+          <input type="checkbox" class="status-filter" value="pastdue" checked style="accent-color:var(--lime);">
+          Atrasada (inadimplente)
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
+          <input type="checkbox" class="status-filter" value="cancelled,canceled" style="accent-color:var(--lime);">
+          Cancelado
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;">
+          <input type="checkbox" class="status-filter" value="ended" style="accent-color:var(--lime);">
+          Inativo
+        </label>
       </div>
     </div>
 
@@ -517,7 +540,10 @@ async function fetchAll(token, dateFrom, dateTo, validAmounts) {
       setProgress(pct, `Buscando assinaturas: janela ${w+1}/${windows.length} (${all.length} carregadas)`);
 
       const params = new URLSearchParams();
-      params.append('subscription_status[]', 'active');
+      const selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+        .flatMap(cb => cb.value.split(','));
+      const statusesToUse = selectedStatuses.length ? selectedStatuses : ['active'];
+      statusesToUse.forEach(st => params.append('subscription_status[]', st));
       params.set('next_cycle_at_ini', wFrom);
       params.set('next_cycle_at_end', wTo);
       if (cursor) params.set('cursor', cursor);
