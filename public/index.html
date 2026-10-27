@@ -805,8 +805,8 @@ function renderTable() {
         const fmt = (v) => v && v !== '—' ? new Date(v).toLocaleDateString('pt-BR') : '—';
         return `<tr class="${s.status_ok?'':'irregular'}">
           <td title="${s.customer}"><a href="https://digitalmanager.guru/admin/subscriptions/${s.subscription_code || s.id}" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--lime);opacity:.9;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.9">${s.customer}</a></td>
-          <td class="mono" style="font-size:.75rem">${s.phone !== '—' ? `<a href="https://boardacademy.pipedrive.com/search?q=${encodeURIComponent(s.phone)}" target="_blank" style="color:var(--muted);text-decoration:none;" title="Buscar no Pipedrive">${s.phone}</a>` : '<span style="color:var(--muted)">—</span>'}</td>
-          <td>${s.email !== '—' ? `<a href="https://boardacademy.pipedrive.com/search?q=${encodeURIComponent(s.email)}" target="_blank" style="color:var(--muted);text-decoration:none;" title="Buscar no Pipedrive">${s.email}</a>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td class="mono" style="font-size:.75rem">${s.phone !== '—' ? `<span style="color:var(--muted);cursor:pointer;" title="Clique para copiar" onclick="copyAndOpen('${s.phone}')">${s.phone} <span style="font-size:.65rem;opacity:.5">⎘</span></span>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td>${s.email !== '—' ? `<span style="color:var(--muted);cursor:pointer;" title="Clique para copiar" onclick="copyAndOpen('${s.email}')">${s.email} <span style="font-size:.65rem;opacity:.5">⎘</span></span>` : '<span style="color:var(--muted)">—</span>'}</td>
           <td>${statusPill}</td>
           <td style="font-family:var(--mono);font-size:.78rem;">
             ${s.charged_times === 1
@@ -875,6 +875,22 @@ function setProgress(pct, label) {
   window.sortBy = sortBy;
   window.goPage = goPage;
   window.exportCSV = exportCSV;
+  window.copyAndOpen = function(value) {
+    navigator.clipboard.writeText(value).then(() => {
+      window.open('https://boardacademy.pipedrive.com/', '_blank');
+      // Toast de confirmação
+      const t = document.createElement('div');
+      t.textContent = `"${value}" copiado! Cole na busca do Pipedrive.`;
+      Object.assign(t.style, {
+        position:'fixed', bottom:'2rem', left:'50%', transform:'translateX(-50%)',
+        background:'var(--lime)', color:'#000', padding:'.6rem 1.2rem',
+        borderRadius:'6px', fontFamily:'var(--mono)', fontSize:'.8rem',
+        zIndex:'9999', fontWeight:'600', boxShadow:'0 4px 20px rgba(0,0,0,.4)'
+      });
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    });
+  };
 
   // Inicia o dashboard após MSAL carregado
   initDashboard();
