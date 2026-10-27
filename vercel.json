@@ -8,6 +8,7 @@
     { "src": "/api/subscriptions", "dest": "/api/subscriptions.py" },
     { "src": "/api/subscription_detail", "dest": "/api/subscription_detail.py" },
     { "src": "/api/pipedrive_person", "dest": "/api/pipedrive_person.py" },
+    { "src": "/api/pipe_check", "dest": "/api/pipe_check.py" },
     { "src": "/callback.html", "dest": "/public/callback.html" },
     { "src": "/(.*)", "dest": "/public/index.html" }
   ]
