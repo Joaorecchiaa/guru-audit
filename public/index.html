@@ -856,7 +856,7 @@ async function runPipeCheck() {
   document.getElementById('tableArea').innerHTML = `
     <div style="display:flex;align-items:center;gap:1rem;padding:2rem;color:var(--muted)">
       <div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--lime);border-radius:50%;animation:spin .7s linear infinite"></div>
-      Cruzando ${emails.length} emails com funil FENIX…
+      Cruzando ${emails.length} emails com funis FENIX / NAVIGATOR…
     </div>`;
 
   const batchSize = 50;
@@ -881,60 +881,100 @@ async function runPipeCheck() {
 
 function renderPipeResults() {
   if (!pipeResults) {
-    document.getElementById('tableArea').innerHTML = `
-      <div style="padding:3rem;color:var(--muted);text-align:center">
-        <p style="font-size:1rem;margin-bottom:.5rem">Clique em <strong style="color:var(--lime)">⇄ Cruzar com FENIX</strong> para verificar os leads da busca atual.</p>
-        <p style="font-size:.8rem">Os emails da última busca serão cruzados com os deals abertos do funil FENIX.</p>
-      </div>`;
+    document.getElementById('tableArea').innerHTML =
+      '<div style="padding:3rem;color:var(--muted);text-align:center">' +
+        '<p style="font-size:1rem;margin-bottom:.5rem">Clique em <strong style="color:var(--lime)">⇄ Cruzar com FENIX / NAVIGATOR</strong> para verificar os leads da busca atual.</p>' +
+        '<p style="font-size:.8rem">Os emails da última busca serão cruzados com deals abertos e perdidos dos funis FENIX e NAVIGATOR.</p>' +
+      '</div>';
     return;
   }
 
   const { found, not_found } = pipeResults;
   const thStyle = 'style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)"';
 
+  // Mapa email → status da Guru para cruzamento
+  const guruStatusMap = {};
+  allSubs.forEach(s => { if (s.email && s.email !== '—') guruStatusMap[s.email.toLowerCase()] = s.status; });
+
+  const statusPipePill = (s) => {
+    if (s === 'open') return '<span style="background:rgba(240,192,64,.15);color:var(--lime);padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">Aberto</span>';
+    if (s === 'lost') return '<span style="background:rgba(255,71,87,.12);color:var(--red);padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">Perdido</span>';
+    return s;
+  };
+
+  const statusGuruPill = (s) => {
+    const map = {
+      active:  ['Ativo',     'rgba(240,192,64,.15)', 'var(--lime)'],
+      pastdue: ['Atrasado',  'rgba(255,71,87,.12)',  'var(--red)'],
+      canceled:['Cancelado', 'rgba(107,112,144,.15)','var(--muted)'],
+      inactive:['Inativo',   'rgba(107,112,144,.15)','var(--muted)'],
+      expired: ['Expirado',  'rgba(107,112,144,.15)','var(--muted)'],
+      trial:   ['Trial',     'rgba(123,140,222,.15)','#7B8CDE'],
+      started: ['Iniciado',  'rgba(123,140,222,.15)','#7B8CDE'],
+    };
+    const [label, bg, color] = map[s] || [s || '—', 'transparent', 'var(--muted)'];
+    return '<span style="background:' + bg + ';color:' + color + ';padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">' + label + '</span>';
+  };
+
+  const pipelinePill = (p) => {
+    const color = p === 'FENIX' ? '#F0A040' : '#7B8CDE';
+    return '<span style="background:rgba(128,128,255,.1);color:' + color + ';padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">' + p + '</span>';
+  };
+
   const thead = '<thead><tr>' +
     '<th ' + thStyle + '>Cliente</th>' +
     '<th ' + thStyle + '>Email</th>' +
     '<th ' + thStyle + '>Telefone</th>' +
-    '<th ' + thStyle + '>Deal (FENIX)</th>' +
+    '<th ' + thStyle + '>Deal</th>' +
+    '<th ' + thStyle + '>Funil</th>' +
+    '<th ' + thStyle + '>Status Pipe</th>' +
+    '<th ' + thStyle + '>Status Guru</th>' +
     '<th ' + thStyle + '>Responsável</th>' +
     '<th ' + thStyle + '>Atualizado</th>' +
     '</tr></thead>';
 
-  const foundRows = found.map(r =>
-    '<tr>' +
+  const foundRows = found.map(r => {
+    const guruStatus = guruStatusMap[r.email.toLowerCase()] || '—';
+    return '<tr>' +
     '<td><a href="' + r.person_url + '" target="_blank" style="color:var(--lime);text-decoration:none;font-weight:500">' + r.person_name + '</a></td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + (r.person_phone || '—') + '</td>' +
     '<td><a href="' + r.deal_url + '" target="_blank" style="color:var(--text);text-decoration:none">' + r.deal_title + '</a></td>' +
+    '<td>' + pipelinePill(r.deal_pipeline) + '</td>' +
+    '<td>' + statusPipePill(r.deal_status) + '</td>' +
+    '<td>' + statusGuruPill(guruStatus) + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.deal_owner + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + (r.deal_updated ? r.deal_updated.substring(0,10) : '—') + '</td>' +
-    '</tr>'
-  ).join('');
+    '</tr>';
+  }).join('');
 
-  const notFoundRows = not_found.map(r =>
-    '<tr>' +
+  const notFoundRows = not_found.map(r => {
+    const guruStatus = guruStatusMap[r.email.toLowerCase()] || '—';
+    return '<tr>' +
     '<td style="color:var(--muted)">' + (r.person_name || '—') + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + (r.person_phone || '—') + '</td>' +
     '<td colspan="3" style="color:var(--muted);font-size:.8rem;font-style:italic">' + r.reason + '</td>' +
-    '</tr>'
-  ).join('');
+    '<td>' + statusGuruPill(guruStatus) + '</td>' +
+    '<td colspan="2" style="color:var(--muted)">—</td>' +
+    '</tr>';
+  }).join('');
 
-  const empty = '<tr><td colspan="6" style="color:var(--muted);padding:1rem;text-align:center">Nenhum</td></tr>';
+  const emptyFound    = '<tr><td colspan="9" style="color:var(--muted);padding:1rem;text-align:center">Nenhum encontrado</td></tr>';
+  const emptyNotFound = '<tr><td colspan="9" style="color:var(--muted);padding:1rem;text-align:center">Nenhum</td></tr>';
 
   document.getElementById('tableArea').innerHTML =
     '<div style="margin-bottom:2rem">' +
       '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">' +
-        '<span style="background:rgba(240,192,64,.15);color:var(--lime);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">✅ Encontrados no FENIX — ' + found.length + '</span>' +
+        '<span style="background:rgba(240,192,64,.15);color:var(--lime);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">✅ Encontrados no FENIX / NAVIGATOR — ' + found.length + '</span>' +
       '</div>' +
-      '<div class="table-wrap"><table>' + thead + '<tbody>' + (foundRows || empty) + '</tbody></table></div>' +
+      '<div class="table-wrap"><table>' + thead + '<tbody>' + (foundRows || emptyFound) + '</tbody></table></div>' +
     '</div>' +
     '<div>' +
       '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">' +
-        '<span style="background:rgba(255,71,87,.12);color:var(--red);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">❌ Não encontrados no FENIX — ' + not_found.length + '</span>' +
+        '<span style="background:rgba(255,71,87,.12);color:var(--red);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">❌ Não encontrados — ' + not_found.length + '</span>' +
       '</div>' +
-      '<div class="table-wrap"><table>' + thead + '<tbody>' + (notFoundRows || empty) + '</tbody></table></div>' +
+      '<div class="table-wrap"><table>' + thead + '<tbody>' + (notFoundRows || emptyNotFound) + '</tbody></table></div>' +
     '</div>';
 }
 
