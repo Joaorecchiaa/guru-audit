@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler
 
 PIPEDRIVE_BASE = "https://api.pipedrive.com/v1"
 TOKEN = os.environ.get("PIPEDRIVE_TOKEN", "")
-FENIX_PIPELINE_ID = 42
+PIPELINE_IDS = {42: "FENIX", 51: "NAVIGATOR"}
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -35,22 +35,23 @@ class handler(BaseHTTPRequestHandler):
 
             person_id = person["id"]
             person_name = person.get("name", "—")
-            person_phone = ""
             phones = person.get("phone", [])
-            if phones:
-                person_phone = phones[0].get("value", "")
+            person_phone = phones[0].get("value", "") if phones else ""
 
-            deals = self._get_open_deals_fenix(person_id)
+            deals = self._get_deals(person_id)
             if not deals:
                 not_found.append({
                     "email": email,
                     "person_name": person_name,
                     "person_id": person_id,
                     "person_phone": person_phone,
-                    "reason": "Pessoa encontrada mas sem deals abertos no FENIX"
+                    "reason": "Pessoa encontrada mas sem deals nos funis FENIX/NAVIGATOR"
                 })
             else:
                 for deal in deals:
+                    pipeline_id = deal.get("pipeline_id")
+                    pipeline_name = PIPELINE_IDS.get(pipeline_id, str(pipeline_id))
+                    status = deal.get("status", "")
                     found.append({
                         "email": email,
                         "person_name": person_name,
@@ -58,8 +59,8 @@ class handler(BaseHTTPRequestHandler):
                         "person_phone": person_phone,
                         "deal_id": deal["id"],
                         "deal_title": deal.get("title", "—"),
-                        "deal_stage": deal.get("stage_id", "—"),
-                        "deal_stage_name": deal.get("stage_order_nr", "—"),
+                        "deal_status": status,
+                        "deal_pipeline": pipeline_name,
                         "deal_value": deal.get("value", 0),
                         "deal_owner": deal.get("owner_name", "—"),
                         "deal_updated": deal.get("update_time", "—"),
@@ -87,20 +88,23 @@ class handler(BaseHTTPRequestHandler):
             pass
         return None
 
-    def _get_open_deals_fenix(self, person_id):
-        url = f"{PIPEDRIVE_BASE}/persons/{person_id}/deals?" + urllib.parse.urlencode({
-            "status": "open",
-            "api_token": TOKEN,
-            "limit": 50,
-        })
-        try:
-            with urllib.request.urlopen(url, timeout=10) as resp:
-                data = json.loads(resp.read().decode())
-            deals = data.get("data") or []
-            # Filtra só funil FENIX (id 42)
-            return [d for d in deals if d.get("pipeline_id") == FENIX_PIPELINE_ID]
-        except:
-            return []
+    def _get_deals(self, person_id):
+        """Busca deals abertos e perdidos da pessoa, filtra pelos funis FENIX e NAVIGATOR."""
+        results = []
+        for status in ["open", "lost"]:
+            url = f"{PIPEDRIVE_BASE}/persons/{person_id}/deals?" + urllib.parse.urlencode({
+                "status": status,
+                "api_token": TOKEN,
+                "limit": 50,
+            })
+            try:
+                with urllib.request.urlopen(url, timeout=10) as resp:
+                    data = json.loads(resp.read().decode())
+                deals = data.get("data") or []
+                results += [d for d in deals if d.get("pipeline_id") in PIPELINE_IDS]
+            except:
+                pass
+        return results
 
     def _json(self, status, body):
         out = json.dumps(body).encode()
