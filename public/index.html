@@ -879,6 +879,16 @@ async function runPipeCheck() {
   renderPipeResults();
 }
 
+// Estado de ordenação da aba PIPE
+let pipeSortCol = null;
+let pipeSortDir = 'asc';
+
+function pipeSortBy(col) {
+  if (pipeSortCol === col) pipeSortDir = pipeSortDir === 'asc' ? 'desc' : 'asc';
+  else { pipeSortCol = col; pipeSortDir = 'asc'; }
+  renderPipeResults();
+}
+
 function renderPipeResults() {
   if (!pipeResults) {
     document.getElementById('tableArea').innerHTML =
@@ -888,9 +898,6 @@ function renderPipeResults() {
       '</div>';
     return;
   }
-
-  const { found, not_found } = pipeResults;
-  const thStyle = 'style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)"';
 
   // Mapa email → status da Guru para cruzamento
   const guruStatusMap = {};
@@ -921,44 +928,70 @@ function renderPipeResults() {
     return '<span style="background:rgba(128,128,255,.1);color:' + color + ';padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">' + p + '</span>';
   };
 
-  const thead = '<thead><tr>' +
-    '<th ' + thStyle + '>Cliente</th>' +
-    '<th ' + thStyle + '>Email</th>' +
-    '<th ' + thStyle + '>Telefone</th>' +
-    '<th ' + thStyle + '>Deal</th>' +
-    '<th ' + thStyle + '>Funil</th>' +
-    '<th ' + thStyle + '>Status Pipe</th>' +
-    '<th ' + thStyle + '>Status Guru</th>' +
-    '<th ' + thStyle + '>Responsável</th>' +
-    '<th ' + thStyle + '>Atualizado</th>' +
-    '</tr></thead>';
+  // Colunas com suporte a sort
+  const cols = [
+    { key: 'person_name',  label: 'Cliente' },
+    { key: 'email',        label: 'Email' },
+    { key: 'person_phone', label: 'Telefone' },
+    { key: 'deal_title',   label: 'Deal' },
+    { key: 'deal_pipeline',label: 'Funil' },
+    { key: 'deal_status',  label: 'Status Pipe' },
+    { key: 'guru_status',  label: 'Status Guru' },
+    { key: 'deal_owner',   label: 'Responsável' },
+    { key: 'deal_updated', label: 'Atualizado' },
+  ];
 
-  const foundRows = found.map(r => {
-    const guruStatus = guruStatusMap[r.email.toLowerCase()] || '—';
-    return '<tr>' +
+  const thSort = (key, label) => {
+    const active = pipeSortCol === key;
+    const arrow = active ? (pipeSortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕';
+    return '<th onclick="pipeSortBy(\'' + key + '\')" style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;color:' + (active ? 'var(--lime)' : 'var(--muted)') + ';border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap">' + label + '<span style="opacity:.5;font-size:.6rem">' + arrow + '</span></th>';
+  };
+
+  const thead = '<thead><tr>' + cols.map(c => thSort(c.key, c.label)).join('') + '</tr></thead>';
+
+  // Enriquece found com guru_status para poder ordenar
+  let found = (pipeResults.found || []).map(r => ({
+    ...r, guru_status: guruStatusMap[r.email.toLowerCase()] || '—'
+  }));
+  let not_found = (pipeResults.not_found || []).map(r => ({
+    ...r, guru_status: guruStatusMap[r.email.toLowerCase()] || '—'
+  }));
+
+  // Ordenação
+  if (pipeSortCol) {
+    const sortFn = (a, b) => {
+      const va = (a[pipeSortCol] || '').toString().toLowerCase();
+      const vb = (b[pipeSortCol] || '').toString().toLowerCase();
+      return pipeSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    };
+    found = [...found].sort(sortFn);
+    not_found = [...not_found].sort(sortFn);
+  }
+
+  const foundRows = found.map(r =>
+    '<tr>' +
     '<td><a href="' + r.person_url + '" target="_blank" style="color:var(--lime);text-decoration:none;font-weight:500">' + r.person_name + '</a></td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + (r.person_phone || '—') + '</td>' +
     '<td><a href="' + r.deal_url + '" target="_blank" style="color:var(--text);text-decoration:none">' + r.deal_title + '</a></td>' +
     '<td>' + pipelinePill(r.deal_pipeline) + '</td>' +
     '<td>' + statusPipePill(r.deal_status) + '</td>' +
-    '<td>' + statusGuruPill(guruStatus) + '</td>' +
+    '<td>' + statusGuruPill(r.guru_status) + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.deal_owner + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + (r.deal_updated ? r.deal_updated.substring(0,10) : '—') + '</td>' +
-    '</tr>';
-  }).join('');
+    '</tr>'
+  ).join('');
 
-  const notFoundRows = not_found.map(r => {
-    const guruStatus = guruStatusMap[r.email.toLowerCase()] || '—';
-    return '<tr>' +
+  const notFoundRows = not_found.map(r =>
+    '<tr>' +
     '<td style="color:var(--muted)">' + (r.person_name || '—') + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + (r.person_phone || '—') + '</td>' +
     '<td colspan="3" style="color:var(--muted);font-size:.8rem;font-style:italic">' + r.reason + '</td>' +
-    '<td>' + statusGuruPill(guruStatus) + '</td>' +
+    '<td>' + statusGuruPill(r.guru_status) + '</td>' +
     '<td colspan="2" style="color:var(--muted)">—</td>' +
-    '</tr>';
-  }).join('');
+    '</tr>'
+  ).join('');
 
   const emptyFound    = '<tr><td colspan="9" style="color:var(--muted);padding:1rem;text-align:center">Nenhum encontrado</td></tr>';
   const emptyNotFound = '<tr><td colspan="9" style="color:var(--muted);padding:1rem;text-align:center">Nenhum</td></tr>';
@@ -968,13 +1001,13 @@ function renderPipeResults() {
       '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">' +
         '<span style="background:rgba(240,192,64,.15);color:var(--lime);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">✅ Encontrados no FENIX / NAVIGATOR — ' + found.length + '</span>' +
       '</div>' +
-      '<div class="table-wrap"><table>' + thead + '<tbody>' + (foundRows || emptyFound) + '</tbody></table></div>' +
+      '<div class="table-wrap"><table>' + thead + '<tbody>' + (found.length ? foundRows : emptyFound) + '</tbody></table></div>' +
     '</div>' +
     '<div>' +
       '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">' +
         '<span style="background:rgba(255,71,87,.12);color:var(--red);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">❌ Não encontrados — ' + not_found.length + '</span>' +
       '</div>' +
-      '<div class="table-wrap"><table>' + thead + '<tbody>' + (notFoundRows || emptyNotFound) + '</tbody></table></div>' +
+      '<div class="table-wrap"><table>' + thead + '<tbody>' + (not_found.length ? notFoundRows : emptyNotFound) + '</tbody></table></div>' +
     '</div>';
 }
 
