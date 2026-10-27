@@ -708,24 +708,33 @@ function renderDashboard(validAmounts) {
       <div class="tab ${currentTab==='ok'?'active':''}" onclick="switchTab('ok')">
         ✓ Regulares <span style="margin-left:.3rem;font-size:.7rem;opacity:.7">${ok.length}</span>
       </div>
+      <div class="tab ${currentTab==='pipe'?'active':''}" onclick="switchTab('pipe')" style="color:var(--lime);border-color:${currentTab==='pipe'?'var(--lime)':'transparent'}">
+        ⇄ PIPE
+      </div>
     </div>
-    <input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onSearch(this.value)" value="${searchQuery}">
-    <button class="btn-export" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onSearch(this.value)" value="${searchQuery}" style="display:${currentTab==='pipe'?'none':''}">
+    <button class="btn-export" onclick="exportCSV()" style="display:${currentTab==='pipe'?'none':''}">⬇ Exportar CSV</button>
+    ${currentTab==='pipe' ? `<button class="btn-export" onclick="runPipeCheck()" style="background:var(--lime);color:#000;">⇄ Cruzar com FENIX</button>` : ''}
   </div>`;
 
   document.getElementById('appState').innerHTML = kpis + controls + `<div id="tableArea"></div>`;
-  renderTable();
+  if (currentTab === 'pipe') {
+    renderPipeResults();
+  } else {
+    renderTable();
+  }
 }
 
 function switchTab(tab) {
   currentTab = tab;
   currentPage = 1;
   searchQuery = '';
-  document.querySelector('.search-box').value = '';
-  // Atualiza tabs
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  event.currentTarget.classList.add('active');
-  renderTable();
+  const sb = document.querySelector('.search-box');
+  if (sb) sb.value = '';
+  // Recria os controles/tabs e renderiza o conteúdo correto
+  const validAmounts = (document.getElementById('validAmounts')?.value || '990,1990')
+    .split(',').map(v => parseFloat(v.trim())).filter(Boolean);
+  renderDashboard(validAmounts);
 }
 
 function onSearch(q) {
@@ -834,6 +843,101 @@ function renderTable() {
     ${pagination}`;
 }
 
+// ── Aba PIPE ──────────────────────────────────────────────
+let pipeResults = null;
+
+async function runPipeCheck() {
+  const emails = allSubs.map(s => s.email).filter(e => e && e !== '—');
+  if (!emails.length) {
+    document.getElementById('tableArea').innerHTML = `<p style="color:var(--muted);padding:2rem">Nenhum email disponível. Faça uma busca primeiro.</p>`;
+    return;
+  }
+
+  document.getElementById('tableArea').innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;padding:2rem;color:var(--muted)">
+      <div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--lime);border-radius:50%;animation:spin .7s linear infinite"></div>
+      Cruzando ${emails.length} emails com funil FENIX…
+    </div>`;
+
+  const batchSize = 50;
+  let allFound = [], allNotFound = [];
+
+  for (let i = 0; i < emails.length; i += batchSize) {
+    const batch = emails.slice(i, i + batchSize);
+    try {
+      const res = await fetch('/api/pipe_check?emails=' + encodeURIComponent(batch.join(',')));
+      const data = await res.json();
+      allFound    = allFound.concat(data.found    || []);
+      allNotFound = allNotFound.concat(data.not_found || []);
+    } catch(err) {
+      console.error('Erro lote pipe_check:', err);
+    }
+    setProgress(Math.round(((i + batchSize) / emails.length) * 100), 'Cruzando… ' + Math.min(i+batchSize, emails.length) + '/' + emails.length);
+  }
+
+  pipeResults = { found: allFound, not_found: allNotFound };
+  renderPipeResults();
+}
+
+function renderPipeResults() {
+  if (!pipeResults) {
+    document.getElementById('tableArea').innerHTML = `
+      <div style="padding:3rem;color:var(--muted);text-align:center">
+        <p style="font-size:1rem;margin-bottom:.5rem">Clique em <strong style="color:var(--lime)">⇄ Cruzar com FENIX</strong> para verificar os leads da busca atual.</p>
+        <p style="font-size:.8rem">Os emails da última busca serão cruzados com os deals abertos do funil FENIX.</p>
+      </div>`;
+    return;
+  }
+
+  const { found, not_found } = pipeResults;
+  const thStyle = 'style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)"';
+
+  const thead = '<thead><tr>' +
+    '<th ' + thStyle + '>Cliente</th>' +
+    '<th ' + thStyle + '>Email</th>' +
+    '<th ' + thStyle + '>Telefone</th>' +
+    '<th ' + thStyle + '>Deal (FENIX)</th>' +
+    '<th ' + thStyle + '>Responsável</th>' +
+    '<th ' + thStyle + '>Atualizado</th>' +
+    '</tr></thead>';
+
+  const foundRows = found.map(r =>
+    '<tr>' +
+    '<td><a href="' + r.person_url + '" target="_blank" style="color:var(--lime);text-decoration:none;font-weight:500">' + r.person_name + '</a></td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + (r.person_phone || '—') + '</td>' +
+    '<td><a href="' + r.deal_url + '" target="_blank" style="color:var(--text);text-decoration:none">' + r.deal_title + '</a></td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + r.deal_owner + '</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + (r.deal_updated ? r.deal_updated.substring(0,10) : '—') + '</td>' +
+    '</tr>'
+  ).join('');
+
+  const notFoundRows = not_found.map(r =>
+    '<tr>' +
+    '<td style="color:var(--muted)">' + (r.person_name || '—') + '</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + (r.person_phone || '—') + '</td>' +
+    '<td colspan="3" style="color:var(--muted);font-size:.8rem;font-style:italic">' + r.reason + '</td>' +
+    '</tr>'
+  ).join('');
+
+  const empty = '<tr><td colspan="6" style="color:var(--muted);padding:1rem;text-align:center">Nenhum</td></tr>';
+
+  document.getElementById('tableArea').innerHTML =
+    '<div style="margin-bottom:2rem">' +
+      '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">' +
+        '<span style="background:rgba(240,192,64,.15);color:var(--lime);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">✅ Encontrados no FENIX — ' + found.length + '</span>' +
+      '</div>' +
+      '<div class="table-wrap"><table>' + thead + '<tbody>' + (foundRows || empty) + '</tbody></table></div>' +
+    '</div>' +
+    '<div>' +
+      '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">' +
+        '<span style="background:rgba(255,71,87,.12);color:var(--red);padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">❌ Não encontrados no FENIX — ' + not_found.length + '</span>' +
+      '</div>' +
+      '<div class="table-wrap"><table>' + thead + '<tbody>' + (notFoundRows || empty) + '</tbody></table></div>' +
+    '</div>';
+}
+
 function sortBy(col) {
   if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
   else { sortCol = col; sortDir = 'asc'; }
@@ -875,6 +979,7 @@ function setProgress(pct, label) {
   window.sortBy = sortBy;
   window.goPage = goPage;
   window.exportCSV = exportCSV;
+  window.runPipeCheck = runPipeCheck;
   // Delegação de evento para buscar pessoa no Pipedrive por email/telefone
   document.addEventListener('click', async function(e) {
     const el = e.target.closest('.pipe-copy');
