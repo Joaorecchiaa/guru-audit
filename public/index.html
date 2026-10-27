@@ -875,37 +875,57 @@ function setProgress(pct, label) {
   window.sortBy = sortBy;
   window.goPage = goPage;
   window.exportCSV = exportCSV;
-  // Delegação de evento para copiar email/telefone e abrir Pipedrive
-  document.addEventListener('click', function(e) {
+  // Delegação de evento para buscar pessoa no Pipedrive por email/telefone
+  document.addEventListener('click', async function(e) {
     const el = e.target.closest('.pipe-copy');
     if (!el) return;
     const value = el.dataset.val;
 
-    // Abre Pipedrive ANTES (síncrono, no gesto direto — evita popup blocker)
-    window.open('https://boardacademy.pipedrive.com/', '_blank');
+    // Mostra loading no elemento
+    const original = el.innerHTML;
+    el.innerHTML = `<span style="opacity:.5;font-size:.75rem">buscando…</span>`;
+    el.style.pointerEvents = 'none';
 
-    // Copia via textarea (funciona em todos os browsers sem permissão extra)
-    const ta = document.createElement('textarea');
-    ta.value = value;
-    Object.assign(ta.style, { position:'fixed', top:'-999px', opacity:'0' });
-    document.body.appendChild(ta);
-    ta.focus(); ta.select();
-    try { document.execCommand('copy'); } catch(_) {}
-    ta.remove();
+    try {
+      const res = await fetch(`/api/pipedrive_person?q=${encodeURIComponent(value)}`);
+      const data = await res.json();
 
-    // Toast
+      if (data.url) {
+        window.open(data.url, '_blank');
+        showToast(`Abrindo perfil no Pipedrive…`, 'var(--lime)');
+      } else {
+        // Não encontrou — copia o valor e abre o Pipe na home
+        window.open('https://boardacademy.pipedrive.com/', '_blank');
+        const ta = document.createElement('textarea');
+        ta.value = value;
+        Object.assign(ta.style, { position:'fixed', top:'-999px', opacity:'0' });
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { document.execCommand('copy'); } catch(_) {}
+        ta.remove();
+        showToast(`Não encontrado. "${value}" copiado — cole na busca do Pipe.`, '#FF4757');
+      }
+    } catch(err) {
+      showToast('Erro ao buscar no Pipedrive.', '#FF4757');
+    } finally {
+      el.innerHTML = original;
+      el.style.pointerEvents = '';
+    }
+  });
+
+  function showToast(msg, bg) {
     const t = document.createElement('div');
-    t.textContent = `"${value}" copiado! Cole na busca do Pipedrive (Ctrl+K).`;
+    t.textContent = msg;
     Object.assign(t.style, {
       position:'fixed', bottom:'2rem', left:'50%', transform:'translateX(-50%)',
-      background:'var(--lime)', color:'#000', padding:'.6rem 1.2rem',
+      background: bg, color:'#000', padding:'.6rem 1.2rem',
       borderRadius:'6px', fontFamily:'var(--mono)', fontSize:'.8rem',
       zIndex:'9999', fontWeight:'600', boxShadow:'0 4px 20px rgba(0,0,0,.4)',
       whiteSpace:'nowrap'
     });
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3500);
-  });
+  }
 
   // Inicia o dashboard após MSAL carregado
   initDashboard();
