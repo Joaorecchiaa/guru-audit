@@ -805,8 +805,8 @@ function renderTable() {
         const fmt = (v) => v && v !== '—' ? new Date(v).toLocaleDateString('pt-BR') : '—';
         return `<tr class="${s.status_ok?'':'irregular'}">
           <td title="${s.customer}"><a href="https://digitalmanager.guru/admin/subscriptions/${s.subscription_code || s.id}" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--lime);opacity:.9;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.9">${s.customer}</a></td>
-          <td class="mono" style="font-size:.75rem">${s.phone !== '—' ? `<a href="https://boardacademy.pipedrive.com/persons?search=${encodeURIComponent(s.phone)}" target="_blank" style="color:var(--muted);text-decoration:none;" title="Buscar no Pipedrive">${s.phone}</a>` : '<span style="color:var(--muted)">—</span>'}</td>
-          <td>${s.email !== '—' ? `<a href="https://boardacademy.pipedrive.com/persons?search=${encodeURIComponent(s.email)}" target="_blank" style="color:var(--muted);text-decoration:none;" title="Buscar no Pipedrive">${s.email}</a>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td class="mono" style="font-size:.75rem">${s.phone !== '—' ? `<a href="https://boardacademy.pipedrive.com/search?q=${encodeURIComponent(s.phone)}" target="_blank" style="color:var(--muted);text-decoration:none;" title="Buscar no Pipedrive">${s.phone}</a>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td>${s.email !== '—' ? `<a href="https://boardacademy.pipedrive.com/search?q=${encodeURIComponent(s.email)}" target="_blank" style="color:var(--muted);text-decoration:none;" title="Buscar no Pipedrive">${s.email}</a>` : '<span style="color:var(--muted)">—</span>'}</td>
           <td>${statusPill}</td>
           <td style="font-family:var(--mono);font-size:.78rem;">
             ${s.charged_times === 1
