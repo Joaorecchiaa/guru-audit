@@ -880,30 +880,31 @@ function setProgress(pct, label) {
     const el = e.target.closest('.pipe-copy');
     if (!el) return;
     const value = el.dataset.val;
-    navigator.clipboard.writeText(value).then(() => {
-      window.open('https://boardacademy.pipedrive.com/', '_blank');
-      const t = document.createElement('div');
-      t.textContent = `"${value}" copiado! Cole na busca do Pipedrive (Ctrl+K).`;
-      Object.assign(t.style, {
-        position:'fixed', bottom:'2rem', left:'50%', transform:'translateX(-50%)',
-        background:'var(--lime)', color:'#000', padding:'.6rem 1.2rem',
-        borderRadius:'6px', fontFamily:'var(--mono)', fontSize:'.8rem',
-        zIndex:'9999', fontWeight:'600', boxShadow:'0 4px 20px rgba(0,0,0,.4)',
-        whiteSpace:'nowrap'
-      });
-      document.body.appendChild(t);
-      setTimeout(() => t.remove(), 3500);
-    }).catch(() => {
-      // Fallback: copia via execCommand
-      const ta = document.createElement('textarea');
-      ta.value = value;
-      ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      window.open('https://boardacademy.pipedrive.com/', '_blank');
+
+    // Abre Pipedrive ANTES (síncrono, no gesto direto — evita popup blocker)
+    window.open('https://boardacademy.pipedrive.com/', '_blank');
+
+    // Copia via textarea (funciona em todos os browsers sem permissão extra)
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    Object.assign(ta.style, { position:'fixed', top:'-999px', opacity:'0' });
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch(_) {}
+    ta.remove();
+
+    // Toast
+    const t = document.createElement('div');
+    t.textContent = `"${value}" copiado! Cole na busca do Pipedrive (Ctrl+K).`;
+    Object.assign(t.style, {
+      position:'fixed', bottom:'2rem', left:'50%', transform:'translateX(-50%)',
+      background:'var(--lime)', color:'#000', padding:'.6rem 1.2rem',
+      borderRadius:'6px', fontFamily:'var(--mono)', fontSize:'.8rem',
+      zIndex:'9999', fontWeight:'600', boxShadow:'0 4px 20px rgba(0,0,0,.4)',
+      whiteSpace:'nowrap'
     });
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
   });
 
   // Inicia o dashboard após MSAL carregado
