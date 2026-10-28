@@ -888,6 +888,7 @@ function pipeSortBy(col) {
   else { pipeSortCol = col; pipeSortDir = 'asc'; }
   renderPipeResults();
 }
+window.pipeSortBy = pipeSortBy;
 
 function renderPipeResults() {
   if (!pipeResults) {
@@ -1053,6 +1054,7 @@ function setProgress(pct, label) {
   window.goPage = goPage;
   window.exportCSV = exportCSV;
   window.runPipeCheck = runPipeCheck;
+  window.pipeSortBy = pipeSortBy;
   // Delegação de evento para buscar pessoa no Pipedrive por email/telefone
   document.addEventListener('click', async function(e) {
     const el = e.target.closest('.pipe-copy');
