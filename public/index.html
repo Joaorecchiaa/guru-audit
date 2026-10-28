@@ -414,6 +414,13 @@ let sortDir = 'asc';
 let searchQuery = '';
 let currentPage = 1;
 const PAGE_SIZE = 50;
+let pipeSortCol = null;
+let pipeSortDir = 'asc';
+function pipeSortBy(col) {
+  if (pipeSortCol === col) pipeSortDir = pipeSortDir === 'asc' ? 'desc' : 'asc';
+  else { pipeSortCol = col; pipeSortDir = 'asc'; }
+  renderPipeResults();
+}
 
 // ── Auth MSAL ──
 const AZURE_CLIENT_ID = '85f7de7e-7983-4c0f-92c2-376cfb34df68';
@@ -880,16 +887,6 @@ async function runPipeCheck() {
 }
 
 // Estado de ordenação da aba PIPE
-let pipeSortCol = null;
-let pipeSortDir = 'asc';
-
-function pipeSortBy(col) {
-  if (pipeSortCol === col) pipeSortDir = pipeSortDir === 'asc' ? 'desc' : 'asc';
-  else { pipeSortCol = col; pipeSortDir = 'asc'; }
-  renderPipeResults();
-}
-window.pipeSortBy = pipeSortBy;
-
 function renderPipeResults() {
   if (!pipeResults) {
     document.getElementById('tableArea').innerHTML =
@@ -1054,7 +1051,6 @@ function setProgress(pct, label) {
   window.goPage = goPage;
   window.exportCSV = exportCSV;
   window.runPipeCheck = runPipeCheck;
-  window.pipeSortBy = pipeSortBy;
   // Delegação de evento para buscar pessoa no Pipedrive por email/telefone
   document.addEventListener('click', async function(e) {
     const el = e.target.closest('.pipe-copy');
