@@ -60,8 +60,8 @@ class handler(BaseHTTPRequestHandler):
 
         while True:
             api_params = [
-                ("confirmed_at_ini", date_from),
-                ("confirmed_at_end", date_to),
+                ("ordered_at_ini", date_from),
+                ("ordered_at_end", date_to),
             ]
             if cursor:
                 api_params.append(("cursor", cursor))
@@ -122,7 +122,7 @@ class handler(BaseHTTPRequestHandler):
 
                 # Data confirmada (timestamp Unix → string)
                 dates = t.get("dates") or {}
-                confirmed_ts = dates.get("confirmed_at")
+                confirmed_ts = dates.get("confirmed_at") or dates.get("ordered_at") or dates.get("created_at")
                 if confirmed_ts:
                     try:
                         confirmed_str = datetime.utcfromtimestamp(confirmed_ts).strftime("%d/%m/%Y %H:%M")
