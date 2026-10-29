@@ -4,7 +4,6 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from datetime import date, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import BaseHTTPRequestHandler
 
 GURU_BASE_URL = "https://digitalmanager.guru/api/v2"
@@ -18,6 +17,9 @@ ACCOUNT_LABELS = {
     "ba":    "Board Academy",
     "ibrem": "IBREM",
 }
+
+# Valores que identificam cobranças de renovação de assinatura
+RENEWAL_AMOUNTS = {990.0, 997.0, 1990.0}
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -38,8 +40,8 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 errors.append(f"{account_key}: {str(e)}")
 
-        # Ordena por next_cycle_at decrescente (mais recente primeiro)
-        all_items.sort(key=lambda x: x.get("next_cycle_at") or "", reverse=True)
+        # Ordena por created_at decrescente (mais recente primeiro)
+        all_items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
 
         out = json.dumps({
             "date_from": date_from,
@@ -55,25 +57,20 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(out.encode())
 
     def _fetch_all(self, token, date_from, date_to, account_key):
-        """Busca todas as assinaturas com next_cycle_at no range, sem filtro de ciclo."""
+        """Busca charges (transações) de hoje/ontem e filtra pelos valores de renovação."""
         results = []
         cursor = None
         label = ACCOUNT_LABELS.get(account_key, account_key)
 
-        statuses = ["active", "pastdue", "canceled", "inactive", "expired"]
-
         while True:
-            api_params = []
-            for st in statuses:
-                api_params.append(("subscription_status[]", st))
-            api_params += [
-                ("next_cycle_at_ini", date_from),
-                ("next_cycle_at_end", date_to),
+            api_params = [
+                ("created_at_ini", date_from),
+                ("created_at_end", date_to),
             ]
             if cursor:
                 api_params.append(("cursor", cursor))
 
-            url = f"{GURU_BASE_URL}/subscriptions/?" + urllib.parse.urlencode(api_params)
+            url = f"{GURU_BASE_URL}/charges/?" + urllib.parse.urlencode(api_params)
             req = urllib.request.Request(
                 url,
                 headers={
@@ -95,57 +92,42 @@ class handler(BaseHTTPRequestHandler):
                 items = []
                 cursor = None
 
-            for sub in items:
-                charged = sub.get("charged_times", 0) or 0
-                if charged < 2:
-                    continue  # ignora novas assinaturas (1º ciclo ainda não concluído)
+            for charge in items:
+                # Filtra pelo valor de renovação
+                try:
+                    amount = float(charge.get("amount") or charge.get("total") or 0)
+                except (ValueError, TypeError):
+                    amount = 0.0
 
-                phone_code = (sub.get("contact") or {}).get("phone_local_code", "") or ""
-                phone_num  = (sub.get("contact") or {}).get("phone_number", "") or ""
+                if amount not in RENEWAL_AMOUNTS:
+                    continue
+
+                # Status da transação
+                status = charge.get("status") or "—"
+
+                contact = charge.get("contact") or charge.get("customer") or {}
+                phone_code = contact.get("phone_local_code", "") or ""
+                phone_num  = contact.get("phone_number", "") or ""
+
+                product = charge.get("product") or {}
+                offer   = charge.get("offer") or {}
 
                 results.append({
-                    "account":           account_key,
-                    "account_label":     label,
-                    "subscription_code": sub.get("subscription_code") or sub.get("id") or "—",
-                    "status":            sub.get("last_status") or "—",
-                    "charged_times":     charged,
-                    "customer":          (sub.get("contact") or {}).get("name") or "—",
-                    "email":             (sub.get("contact") or {}).get("email") or "—",
-                    "phone":             f"{phone_code}{phone_num}".strip() or "—",
-                    "offer":             (sub.get("product") or {}).get("name") or "—",
-                    "next_cycle_at":     sub.get("next_cycle_at") or "—",
-                    "amount":            0,  # será preenchido abaixo
+                    "account":       account_key,
+                    "account_label": label,
+                    "charge_code":   charge.get("code") or charge.get("id") or "—",
+                    "status":        status,
+                    "customer":      contact.get("name") or "—",
+                    "email":         contact.get("email") or "—",
+                    "phone":         f"{phone_code}{phone_num}".strip() or "—",
+                    "offer":         offer.get("name") or product.get("name") or "—",
+                    "created_at":    charge.get("created_at") or "—",
+                    "amount":        amount,
+                    "payment_method": charge.get("payment_method") or "—",
                 })
 
             if not cursor or not items:
                 break
-
-        # Busca next_cycle_value de cada assinatura em paralelo (igual à aba principal)
-        def fetch_detail(item):
-            code = item["subscription_code"]
-            url = f"{GURU_BASE_URL}/subscriptions/{urllib.parse.quote(str(code), safe='')}/"
-            req = urllib.request.Request(
-                url,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-            )
-            try:
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    d = json.loads(resp.read().decode())
-                val = d.get("next_cycle_value")
-                if val is not None:
-                    item["amount"] = float(val)
-            except Exception:
-                pass
-            return item
-
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            futures = {pool.submit(fetch_detail, r): r for r in results}
-            for f in as_completed(futures):
-                pass  # atualiza in-place
 
         return results
 
