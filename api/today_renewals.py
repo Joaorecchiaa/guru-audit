@@ -70,7 +70,7 @@ class handler(BaseHTTPRequestHandler):
             if cursor:
                 api_params.append(("cursor", cursor))
 
-            url = f"{GURU_BASE_URL}/sales/?" + urllib.parse.urlencode(api_params)
+            url = f"{GURU_BASE_URL}/transactions/?" + urllib.parse.urlencode(api_params)
             req = urllib.request.Request(
                 url,
                 headers={
@@ -84,7 +84,7 @@ class handler(BaseHTTPRequestHandler):
                     data = json.loads(resp.read().decode())
             except urllib.error.HTTPError as e:
                 body = e.read().decode()
-                raise Exception(f"HTTP {e.code} em /sales/: {body[:300]}")
+                raise Exception(f"HTTP {e.code} em {url}: {body[:300]}")
 
             if isinstance(data, list):
                 items = data
