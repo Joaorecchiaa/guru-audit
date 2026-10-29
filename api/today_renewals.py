@@ -97,6 +97,9 @@ class handler(BaseHTTPRequestHandler):
 
             for sub in items:
                 charged = sub.get("charged_times", 0) or 0
+                if charged < 2:
+                    continue  # ignora novas assinaturas (1º ciclo ainda não concluído)
+
                 phone_code = (sub.get("contact") or {}).get("phone_local_code", "") or ""
                 phone_num  = (sub.get("contact") or {}).get("phone_number", "") or ""
 
