@@ -921,7 +921,7 @@ function renderTodayRenewals() {
     return;
   }
 
-  const { items, date: d, errors } = todayData;
+  const { items, date_from, date_to, errors } = todayData;
 
   const statusPill = (s) => {
     const map = {
@@ -950,21 +950,26 @@ function renderTodayRenewals() {
     '<th ' + thS + '>Telefone</th>' +
     '<th ' + thS + '>Produto</th>' +
     '<th ' + thS + '>Ciclo</th>' +
+    '<th ' + thS + '>Data Cobrança</th>' +
     '<th ' + thS + '>Status</th>' +
     '<th ' + thS + '>Conta</th>' +
     '</tr></thead>';
 
-  const rows = items.length ? items.map(r =>
-    '<tr>' +
+  const rows = items.length ? items.map(r => {
+    const dt = r.next_cycle_at && r.next_cycle_at !== '—'
+      ? r.next_cycle_at.replace('T', ' ').substring(0, 16)
+      : '—';
+    return '<tr>' +
     '<td style="font-weight:500">' + r.customer + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.phone + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.offer + '</td>' +
     '<td style="color:var(--muted);text-align:center">' + r.charged_times + 'º</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + dt + '</td>' +
     '<td>' + statusPill(r.status) + '</td>' +
     '<td>' + accountPill(r.account) + '</td>' +
-    '</tr>'
-  ).join('') : '<tr><td colspan="7" style="color:var(--muted);padding:1.5rem;text-align:center">Nenhuma renovação encontrada para hoje.</td></tr>';
+    '</tr>';
+  }).join('') : '<tr><td colspan="8" style="color:var(--muted);padding:1.5rem;text-align:center">Nenhuma cobrança encontrada no período.</td></tr>';
 
   // Agrupa por status para resumo
   const counts = {};
@@ -979,7 +984,7 @@ function renderTodayRenewals() {
     '<div>' +
       errHtml +
       '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">' +
-        '<span style="background:rgba(123,140,222,.15);color:#7B8CDE;padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">📅 Renovações em ' + d + ' — ' + items.length + '</span>' +
+        '<span style="background:rgba(123,140,222,.15);color:#7B8CDE;padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">📅 Cobranças ' + date_from + ' → ' + date_to + ' — ' + items.length + '</span>' +
         '<span style="display:flex;gap:.4rem;align-items:center">' + summaryPills + '</span>' +
       '</div>' +
       '<div class="table-wrap"><table>' + thead + '<tbody>' + rows + '</tbody></table></div>' +
