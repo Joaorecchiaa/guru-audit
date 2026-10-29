@@ -70,7 +70,7 @@ class handler(BaseHTTPRequestHandler):
             if cursor:
                 api_params.append(("cursor", cursor))
 
-            url = f"{GURU_BASE_URL}/charges/?" + urllib.parse.urlencode(api_params)
+            url = f"{GURU_BASE_URL}/sales/?" + urllib.parse.urlencode(api_params)
             req = urllib.request.Request(
                 url,
                 headers={
@@ -79,8 +79,12 @@ class handler(BaseHTTPRequestHandler):
                     "Accept": "application/json",
                 },
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode())
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = json.loads(resp.read().decode())
+            except urllib.error.HTTPError as e:
+                body = e.read().decode()
+                raise Exception(f"HTTP {e.code} em /sales/: {body[:300]}")
 
             if isinstance(data, list):
                 items = data
@@ -105,25 +109,26 @@ class handler(BaseHTTPRequestHandler):
                 # Status da transação
                 status = charge.get("status") or "—"
 
-                contact = charge.get("contact") or charge.get("customer") or {}
+                sale = charge  # alias para legibilidade
+                contact = sale.get("contact") or sale.get("customer") or sale.get("buyer") or {}
                 phone_code = contact.get("phone_local_code", "") or ""
                 phone_num  = contact.get("phone_number", "") or ""
 
-                product = charge.get("product") or {}
-                offer   = charge.get("offer") or {}
+                product = sale.get("product") or {}
+                offer   = sale.get("offer") or {}
 
                 results.append({
-                    "account":       account_key,
-                    "account_label": label,
-                    "charge_code":   charge.get("code") or charge.get("id") or "—",
-                    "status":        status,
-                    "customer":      contact.get("name") or "—",
-                    "email":         contact.get("email") or "—",
-                    "phone":         f"{phone_code}{phone_num}".strip() or "—",
-                    "offer":         offer.get("name") or product.get("name") or "—",
-                    "created_at":    charge.get("created_at") or "—",
-                    "amount":        amount,
-                    "payment_method": charge.get("payment_method") or "—",
+                    "account":        account_key,
+                    "account_label":  label,
+                    "charge_code":    sale.get("code") or sale.get("id") or "—",
+                    "status":         status,
+                    "customer":       contact.get("name") or "—",
+                    "email":          contact.get("email") or "—",
+                    "phone":          f"{phone_code}{phone_num}".strip() or "—",
+                    "offer":          offer.get("name") or product.get("name") or "—",
+                    "created_at":     sale.get("created_at") or sale.get("approved_at") or "—",
+                    "amount":         amount,
+                    "payment_method": sale.get("payment_method") or sale.get("payment_type") or "—",
                 })
 
             if not cursor or not items:
