@@ -724,7 +724,8 @@ function renderDashboard(validAmounts) {
     </div>
     <input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onSearch(this.value)" value="${searchQuery}" style="display:${currentTab==='pipe'||currentTab==='hoje'?'none':''}">
     <button class="btn-export" onclick="exportCSV()" style="display:${currentTab==='pipe'||currentTab==='hoje'?'none':''}">⬇ Exportar CSV</button>
-    ${currentTab==='pipe' ? `<button class="btn-export" onclick="runPipeCheck()" style="background:var(--lime);color:#000;">⇄ Cruzar com FENIX</button>` : ''}
+    ${currentTab==='pipe' ? `<button class="btn-export" onclick="runPipeCheck()" style="background:var(--lime);color:#000;">⇄ CRUZAR DADOS</button>` : ''}
+    ${currentTab==='hoje' ? `<input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onTodaySearch(this.value)" value="${todaySearch}" style="max-width:240px;">` : ''}
     ${currentTab==='hoje' ? `<button class="btn-export" onclick="loadTodayRenewals()" style="background:#7B8CDE;color:#fff;">↻ Atualizar</button>` : ''}
   </div>`;
 
@@ -894,6 +895,12 @@ async function runPipeCheck() {
 
 // ── Aba HOJE ──
 let todayData = null;
+let todaySearch = '';
+
+function onTodaySearch(q) {
+  todaySearch = q.toLowerCase();
+  renderTodayRenewals();
+}
 
 async function loadTodayRenewals() {
   document.getElementById('tableArea').innerHTML =
@@ -921,7 +928,15 @@ function renderTodayRenewals() {
     return;
   }
 
-  const { items, date_from, date_to, errors } = todayData;
+  let { items, date_from, date_to, errors } = todayData;
+  if (todaySearch) {
+    items = items.filter(r =>
+      (r.customer || '').toLowerCase().includes(todaySearch) ||
+      (r.email    || '').toLowerCase().includes(todaySearch) ||
+      (r.offer    || '').toLowerCase().includes(todaySearch) ||
+      (r.phone    || '').includes(todaySearch)
+    );
+  }
 
   const statusPill = (s) => {
     const map = {
@@ -1171,6 +1186,7 @@ function setProgress(pct, label) {
   window.runPipeCheck = runPipeCheck;
   window.pipeSortBy = pipeSortBy;
   window.loadTodayRenewals = loadTodayRenewals;
+  window.onTodaySearch = onTodaySearch;
   // Delegação de evento para buscar pessoa no Pipedrive por email/telefone
   document.addEventListener('click', async function(e) {
     const el = e.target.closest('.pipe-copy');
