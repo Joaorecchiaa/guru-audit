@@ -719,7 +719,7 @@ function renderDashboard(validAmounts) {
         ⇄ PIPE
       </div>
       <div class="tab ${currentTab==='hoje'?'active':''}" onclick="switchTab('hoje')" style="color:#7B8CDE;border-color:${currentTab==='hoje'?'#7B8CDE':'transparent'}">
-        📅 HOJE
+        💳 COBRANÇAS
       </div>
     </div>
     <input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onSearch(this.value)" value="${searchQuery}" style="display:${currentTab==='pipe'||currentTab==='hoje'?'none':''}">
@@ -897,7 +897,7 @@ let todayData = null;
 
 async function loadTodayRenewals() {
   document.getElementById('tableArea').innerHTML =
-    '<div style="padding:3rem;color:var(--muted);text-align:center">Buscando renovações de hoje nas duas Gurus…</div>';
+    '<div style="padding:3rem;color:var(--muted);text-align:center">Buscando cobranças nas duas Gurus…</div>';
   try {
     const res = await fetch('/api/today_renewals');
     const data = await res.json();
@@ -915,8 +915,8 @@ function renderTodayRenewals() {
   if (!todayData) {
     document.getElementById('tableArea').innerHTML =
       '<div style="padding:3rem;color:var(--muted);text-align:center">' +
-        '<p style="font-size:1rem;margin-bottom:.5rem">Clique em <strong style="color:#7B8CDE">↻ Atualizar</strong> para buscar as renovações de hoje.</p>' +
-        '<p style="font-size:.8rem">Mostra assinaturas com cobrança prevista para hoje (ciclo 2+) nas duas contas Guru.</p>' +
+        '<p style="font-size:1rem;margin-bottom:.5rem">Clique em <strong style="color:#7B8CDE">↻ Atualizar</strong> para buscar as cobranças.</p>' +
+        '<p style="font-size:.8rem">Mostra todas as cobranças de ontem e hoje nas duas contas Guru (BA + IBREM).</p>' +
       '</div>';
     return;
   }
@@ -950,6 +950,7 @@ function renderTodayRenewals() {
     '<th ' + thS + '>Telefone</th>' +
     '<th ' + thS + '>Produto</th>' +
     '<th ' + thS + '>Ciclo</th>' +
+    '<th ' + thS + '>Valor</th>' +
     '<th ' + thS + '>Data Cobrança</th>' +
     '<th ' + thS + '>Status</th>' +
     '<th ' + thS + '>Conta</th>' +
@@ -965,11 +966,12 @@ function renderTodayRenewals() {
     '<td style="color:var(--muted);font-size:.8rem">' + r.phone + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.offer + '</td>' +
     '<td style="color:var(--muted);text-align:center">' + r.charged_times + 'º</td>' +
+    '<td style="font-weight:500;white-space:nowrap">R$ ' + (r.amount ? Number(r.amount).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '—') + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + dt + '</td>' +
     '<td>' + statusPill(r.status) + '</td>' +
     '<td>' + accountPill(r.account) + '</td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="8" style="color:var(--muted);padding:1.5rem;text-align:center">Nenhuma cobrança encontrada no período.</td></tr>';
+  }).join('') : '<tr><td colspan="9" style="color:var(--muted);padding:1.5rem;text-align:center">Nenhuma cobrança encontrada no período.</td></tr>';
 
   // Agrupa por status para resumo
   const counts = {};
