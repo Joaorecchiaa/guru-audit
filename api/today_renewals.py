@@ -18,8 +18,6 @@ ACCOUNT_LABELS = {
     "ibrem": "IBREM",
 }
 
-# Valores que identificam cobranças de renovação de assinatura
-RENEWAL_AMOUNTS = {990.0, 997.0, 1990.0}
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -101,10 +99,6 @@ class handler(BaseHTTPRequestHandler):
                     amount = float(payment.get("total") or payment.get("gross") or 0)
                 except (ValueError, TypeError):
                     amount = 0.0
-
-                # Só mostra os valores de renovação
-                if amount not in RENEWAL_AMOUNTS:
-                    continue
 
                 # Só renovações: subscription.charged_times >= 2
                 subscription = t.get("subscription") or {}
