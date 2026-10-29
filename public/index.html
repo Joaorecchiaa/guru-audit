@@ -718,15 +718,21 @@ function renderDashboard(validAmounts) {
       <div class="tab ${currentTab==='pipe'?'active':''}" onclick="switchTab('pipe')" style="color:var(--lime);border-color:${currentTab==='pipe'?'var(--lime)':'transparent'}">
         ⇄ PIPE
       </div>
+      <div class="tab ${currentTab==='hoje'?'active':''}" onclick="switchTab('hoje')" style="color:#7B8CDE;border-color:${currentTab==='hoje'?'#7B8CDE':'transparent'}">
+        📅 HOJE
+      </div>
     </div>
-    <input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onSearch(this.value)" value="${searchQuery}" style="display:${currentTab==='pipe'?'none':''}">
-    <button class="btn-export" onclick="exportCSV()" style="display:${currentTab==='pipe'?'none':''}">⬇ Exportar CSV</button>
+    <input class="search-box" type="text" placeholder="Buscar cliente, email, oferta…" oninput="onSearch(this.value)" value="${searchQuery}" style="display:${currentTab==='pipe'||currentTab==='hoje'?'none':''}">
+    <button class="btn-export" onclick="exportCSV()" style="display:${currentTab==='pipe'||currentTab==='hoje'?'none':''}">⬇ Exportar CSV</button>
     ${currentTab==='pipe' ? `<button class="btn-export" onclick="runPipeCheck()" style="background:var(--lime);color:#000;">⇄ Cruzar com FENIX</button>` : ''}
+    ${currentTab==='hoje' ? `<button class="btn-export" onclick="loadTodayRenewals()" style="background:#7B8CDE;color:#fff;">↻ Atualizar</button>` : ''}
   </div>`;
 
   document.getElementById('appState').innerHTML = kpis + controls + `<div id="tableArea"></div>`;
   if (currentTab === 'pipe') {
     renderPipeResults();
+  } else if (currentTab === 'hoje') {
+    renderTodayRenewals();
   } else {
     renderTable();
   }
@@ -884,6 +890,100 @@ async function runPipeCheck() {
 
   pipeResults = { found: allFound, not_found: allNotFound };
   renderPipeResults();
+}
+
+// ── Aba HOJE ──
+let todayData = null;
+
+async function loadTodayRenewals() {
+  document.getElementById('tableArea').innerHTML =
+    '<div style="padding:3rem;color:var(--muted);text-align:center">Buscando renovações de hoje nas duas Gurus…</div>';
+  try {
+    const res = await fetch('/api/today_renewals');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+    todayData = data;
+  } catch(err) {
+    document.getElementById('tableArea').innerHTML =
+      '<div style="padding:2rem;color:var(--red);text-align:center">Erro ao carregar: ' + err.message + '</div>';
+    return;
+  }
+  renderTodayRenewals();
+}
+
+function renderTodayRenewals() {
+  if (!todayData) {
+    document.getElementById('tableArea').innerHTML =
+      '<div style="padding:3rem;color:var(--muted);text-align:center">' +
+        '<p style="font-size:1rem;margin-bottom:.5rem">Clique em <strong style="color:#7B8CDE">↻ Atualizar</strong> para buscar as renovações de hoje.</p>' +
+        '<p style="font-size:.8rem">Mostra assinaturas com cobrança prevista para hoje (ciclo 2+) nas duas contas Guru.</p>' +
+      '</div>';
+    return;
+  }
+
+  const { items, date: d, errors } = todayData;
+
+  const statusPill = (s) => {
+    const map = {
+      active:  ['Ativo',     'rgba(240,192,64,.15)', 'var(--lime)'],
+      pastdue: ['Atrasado',  'rgba(255,71,87,.12)',  '#FF4757'],
+      canceled:['Cancelado', 'rgba(107,112,144,.15)','var(--muted)'],
+      inactive:['Inativo',   'rgba(107,112,144,.15)','var(--muted)'],
+      expired: ['Expirado',  'rgba(107,112,144,.15)','var(--muted)'],
+      trial:   ['Trial',     'rgba(123,140,222,.15)','#7B8CDE'],
+      started: ['Iniciado',  'rgba(123,140,222,.15)','#7B8CDE'],
+    };
+    const [label, bg, color] = map[s] || [s || '—', 'transparent', 'var(--muted)'];
+    return '<span style="background:' + bg + ';color:' + color + ';padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">' + label + '</span>';
+  };
+
+  const accountPill = (a) => {
+    const color = a === 'ba' ? 'var(--lime)' : '#F0A040';
+    const label = a === 'ba' ? 'Board Academy' : 'IBREM';
+    return '<span style="background:rgba(128,128,128,.1);color:' + color + ';padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">' + label + '</span>';
+  };
+
+  const thS = 'style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)"';
+  const thead = '<thead><tr>' +
+    '<th ' + thS + '>Cliente</th>' +
+    '<th ' + thS + '>Email</th>' +
+    '<th ' + thS + '>Telefone</th>' +
+    '<th ' + thS + '>Produto</th>' +
+    '<th ' + thS + '>Ciclo</th>' +
+    '<th ' + thS + '>Status</th>' +
+    '<th ' + thS + '>Conta</th>' +
+    '</tr></thead>';
+
+  const rows = items.length ? items.map(r =>
+    '<tr>' +
+    '<td style="font-weight:500">' + r.customer + '</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + r.phone + '</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + r.offer + '</td>' +
+    '<td style="color:var(--muted);text-align:center">' + r.charged_times + 'º</td>' +
+    '<td>' + statusPill(r.status) + '</td>' +
+    '<td>' + accountPill(r.account) + '</td>' +
+    '</tr>'
+  ).join('') : '<tr><td colspan="7" style="color:var(--muted);padding:1.5rem;text-align:center">Nenhuma renovação encontrada para hoje.</td></tr>';
+
+  // Agrupa por status para resumo
+  const counts = {};
+  items.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+  const summaryPills = Object.entries(counts).map(([s, n]) => statusPill(s) + ' <span style="font-size:.75rem;color:var(--muted)">' + n + '</span>').join(' ');
+
+  const errHtml = errors && errors.length
+    ? '<div style="color:var(--red);font-size:.75rem;margin-bottom:.5rem">⚠ ' + errors.join(' | ') + '</div>'
+    : '';
+
+  document.getElementById('tableArea').innerHTML =
+    '<div>' +
+      errHtml +
+      '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">' +
+        '<span style="background:rgba(123,140,222,.15);color:#7B8CDE;padding:.3rem .7rem;border-radius:4px;font-size:.75rem;font-weight:600">📅 Renovações em ' + d + ' — ' + items.length + '</span>' +
+        '<span style="display:flex;gap:.4rem;align-items:center">' + summaryPills + '</span>' +
+      '</div>' +
+      '<div class="table-wrap"><table>' + thead + '<tbody>' + rows + '</tbody></table></div>' +
+    '</div>';
 }
 
 // Estado de ordenação da aba PIPE
@@ -1052,6 +1152,7 @@ function setProgress(pct, label) {
   window.exportCSV = exportCSV;
   window.runPipeCheck = runPipeCheck;
   window.pipeSortBy = pipeSortBy;
+  window.loadTodayRenewals = loadTodayRenewals;
   // Delegação de evento para buscar pessoa no Pipedrive por email/telefone
   document.addEventListener('click', async function(e) {
     const el = e.target.closest('.pipe-copy');
