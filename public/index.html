@@ -925,15 +925,21 @@ function renderTodayRenewals() {
 
   const statusPill = (s) => {
     const map = {
-      active:  ['Ativo',     'rgba(240,192,64,.15)', 'var(--lime)'],
-      pastdue: ['Atrasado',  'rgba(255,71,87,.12)',  '#FF4757'],
-      canceled:['Cancelado', 'rgba(107,112,144,.15)','var(--muted)'],
-      inactive:['Inativo',   'rgba(107,112,144,.15)','var(--muted)'],
-      expired: ['Expirado',  'rgba(107,112,144,.15)','var(--muted)'],
-      trial:   ['Trial',     'rgba(123,140,222,.15)','#7B8CDE'],
-      started: ['Iniciado',  'rgba(123,140,222,.15)','#7B8CDE'],
+      // status de charge
+      approved:  ['Aprovada',   'rgba(240,192,64,.15)', 'var(--lime)'],
+      paid:      ['Paga',       'rgba(240,192,64,.15)', 'var(--lime)'],
+      canceled:  ['Cancelada',  'rgba(255,71,87,.12)',  '#FF4757'],
+      refunded:  ['Reembolsada','rgba(255,71,87,.12)',  '#FF4757'],
+      failed:    ['Falhou',     'rgba(255,71,87,.12)',  '#FF4757'],
+      pending:   ['Pendente',   'rgba(123,140,222,.15)','#7B8CDE'],
+      waiting:   ['Aguardando', 'rgba(123,140,222,.15)','#7B8CDE'],
+      // status de subscription (fallback)
+      active:    ['Ativo',      'rgba(240,192,64,.15)', 'var(--lime)'],
+      pastdue:   ['Atrasado',   'rgba(255,71,87,.12)',  '#FF4757'],
+      inactive:  ['Inativo',    'rgba(107,112,144,.15)','var(--muted)'],
+      expired:   ['Expirado',   'rgba(107,112,144,.15)','var(--muted)'],
     };
-    const [label, bg, color] = map[s] || [s || '—', 'transparent', 'var(--muted)'];
+    const [label, bg, color] = map[(s||'').toLowerCase()] || [s || '—', 'transparent', 'var(--muted)'];
     return '<span style="background:' + bg + ';color:' + color + ';padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">' + label + '</span>';
   };
 
@@ -943,13 +949,18 @@ function renderTodayRenewals() {
     return '<span style="background:rgba(128,128,128,.1);color:' + color + ';padding:.15rem .5rem;border-radius:3px;font-size:.7rem;font-weight:600">' + label + '</span>';
   };
 
+  const payMethodLabel = (m) => {
+    const map = { credit_card:'Cartão', boleto:'Boleto', pix:'PIX', debit_card:'Débito', bank_slip:'Boleto' };
+    return map[(m||'').toLowerCase()] || m || '—';
+  };
+
   const thS = 'style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)"';
   const thead = '<thead><tr>' +
     '<th ' + thS + '>Cliente</th>' +
     '<th ' + thS + '>Email</th>' +
     '<th ' + thS + '>Telefone</th>' +
     '<th ' + thS + '>Produto</th>' +
-    '<th ' + thS + '>Ciclo</th>' +
+    '<th ' + thS + '>Pagamento</th>' +
     '<th ' + thS + '>Valor</th>' +
     '<th ' + thS + '>Data Cobrança</th>' +
     '<th ' + thS + '>Status</th>' +
@@ -957,15 +968,15 @@ function renderTodayRenewals() {
     '</tr></thead>';
 
   const rows = items.length ? items.map(r => {
-    const dt = r.next_cycle_at && r.next_cycle_at !== '—'
-      ? r.next_cycle_at.replace('T', ' ').substring(0, 16)
+    const dt = r.created_at && r.created_at !== '—'
+      ? r.created_at.replace('T', ' ').substring(0, 16)
       : '—';
     return '<tr>' +
     '<td style="font-weight:500">' + r.customer + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.email + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.phone + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + r.offer + '</td>' +
-    '<td style="color:var(--muted);text-align:center">' + r.charged_times + 'º</td>' +
+    '<td style="color:var(--muted);font-size:.8rem">' + payMethodLabel(r.payment_method) + '</td>' +
     '<td style="font-weight:500;white-space:nowrap">R$ ' + (r.amount ? Number(r.amount).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '—') + '</td>' +
     '<td style="color:var(--muted);font-size:.8rem">' + dt + '</td>' +
     '<td>' + statusPill(r.status) + '</td>' +
