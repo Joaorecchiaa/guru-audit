@@ -64,8 +64,8 @@ class handler(BaseHTTPRequestHandler):
 
         while True:
             api_params = [
-                ("created_at_ini", date_from),
-                ("created_at_end", date_to),
+                ("confirmed_at_ini", date_from),
+                ("confirmed_at_end", date_to),
             ]
             if cursor:
                 api_params.append(("cursor", cursor))
@@ -109,26 +109,26 @@ class handler(BaseHTTPRequestHandler):
                 # Status da transação
                 status = charge.get("status") or "—"
 
-                sale = charge  # alias para legibilidade
-                contact = sale.get("contact") or sale.get("customer") or sale.get("buyer") or {}
+                t = charge  # transação
+                contact = t.get("contact") or t.get("customer") or t.get("buyer") or {}
                 phone_code = contact.get("phone_local_code", "") or ""
                 phone_num  = contact.get("phone_number", "") or ""
 
-                product = sale.get("product") or {}
-                offer   = sale.get("offer") or {}
+                product = t.get("product") or {}
+                offer   = t.get("offer") or {}
 
                 results.append({
                     "account":        account_key,
                     "account_label":  label,
-                    "charge_code":    sale.get("code") or sale.get("id") or "—",
+                    "charge_code":    t.get("code") or t.get("id") or "—",
                     "status":         status,
                     "customer":       contact.get("name") or "—",
                     "email":          contact.get("email") or "—",
                     "phone":          f"{phone_code}{phone_num}".strip() or "—",
                     "offer":          offer.get("name") or product.get("name") or "—",
-                    "created_at":     sale.get("created_at") or sale.get("approved_at") or "—",
+                    "created_at":     t.get("confirmed_at") or t.get("created_at") or t.get("approved_at") or "—",
                     "amount":         amount,
-                    "payment_method": sale.get("payment_method") or sale.get("payment_type") or "—",
+                    "payment_method": t.get("payment_method") or t.get("payment_type") or t.get("method") or "—",
                 })
 
             if not cursor or not items:
