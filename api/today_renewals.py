@@ -3,7 +3,7 @@ import os
 import urllib.request
 import urllib.parse
 import urllib.error
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from http.server import BaseHTTPRequestHandler
 
 GURU_BASE_URL = "https://digitalmanager.guru/api/v2"
@@ -30,27 +30,24 @@ class handler(BaseHTTPRequestHandler):
 
         all_items = []
         errors = []
-        debug_samples = []  # primeiros itens brutos para diagnóstico
 
         for account_key, token in TOKENS.items():
             if not token:
                 continue
             try:
-                items, raw_samples = self._fetch_all(token, date_from, date_to, account_key)
+                items = self._fetch_all(token, date_from, date_to, account_key)
                 all_items.extend(items)
-                debug_samples.extend(raw_samples)
             except Exception as e:
                 errors.append(f"{account_key}: {str(e)}")
 
         all_items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
 
         out = json.dumps({
-            "date_from":     date_from,
-            "date_to":       date_to,
-            "total":         len(all_items),
-            "items":         all_items,
-            "errors":        errors,
-            "_debug_samples": debug_samples,  # remover após diagnóstico
+            "date_from": date_from,
+            "date_to":   date_to,
+            "total":     len(all_items),
+            "items":     all_items,
+            "errors":    errors,
         })
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -60,7 +57,6 @@ class handler(BaseHTTPRequestHandler):
 
     def _fetch_all(self, token, date_from, date_to, account_key):
         results = []
-        raw_samples = []
         cursor = None
         label = ACCOUNT_LABELS.get(account_key, account_key)
 
@@ -86,7 +82,7 @@ class handler(BaseHTTPRequestHandler):
                     data = json.loads(resp.read().decode())
             except urllib.error.HTTPError as e:
                 body = e.read().decode()
-                raise Exception(f"HTTP {e.code} em {url}: {body[:300]}")
+                raise Exception(f"HTTP {e.code}: {body[:300]}")
 
             if isinstance(data, list):
                 items = data
@@ -98,48 +94,74 @@ class handler(BaseHTTPRequestHandler):
                 items = []
                 cursor = None
 
-            # Guarda até 2 itens brutos por conta para diagnóstico
-            if len(raw_samples) < 2 and items:
-                raw_samples.append({"account": account_key, "sample": items[0]})
-
             for t in items:
-                # Extrai valor de todos os campos possíveis
+                # Valor real fica em payment.total
+                payment = t.get("payment") or {}
                 try:
-                    amount = float(
-                        t.get("amount") or t.get("total") or t.get("value") or
-                        t.get("price") or t.get("gross_value") or t.get("net_value") or 0
-                    )
+                    amount = float(payment.get("total") or payment.get("gross") or 0)
                 except (ValueError, TypeError):
                     amount = 0.0
 
+                # Só mostra os valores de renovação
                 if amount not in RENEWAL_AMOUNTS:
                     continue
 
-                status = t.get("status") or "—"
-                contact = t.get("contact") or t.get("customer") or t.get("buyer") or {}
+                # Só renovações: subscription.charged_times >= 2
+                subscription = t.get("subscription") or {}
+                charged_times = subscription.get("charged_times") or 0
+                if charged_times < 2:
+                    continue
+
+                # Dados do contato
+                contact = t.get("contact") or {}
                 phone_code = contact.get("phone_local_code", "") or ""
                 phone_num  = contact.get("phone_number", "") or ""
-                product = t.get("product") or {}
-                offer   = t.get("offer") or {}
+
+                # Produto/oferta — pega do primeiro item ou do product
+                items_list = t.get("items") or []
+                offer_name = ""
+                if items_list:
+                    first = items_list[0]
+                    offer_name = (first.get("offer") or {}).get("name") or first.get("name") or ""
+                if not offer_name:
+                    offer_name = (t.get("product") or {}).get("name") or "—"
+
+                # Data confirmada (timestamp Unix → string)
+                dates = t.get("dates") or {}
+                confirmed_ts = dates.get("confirmed_at")
+                if confirmed_ts:
+                    try:
+                        confirmed_str = datetime.utcfromtimestamp(confirmed_ts).strftime("%d/%m/%Y %H:%M")
+                    except Exception:
+                        confirmed_str = str(confirmed_ts)
+                else:
+                    confirmed_str = "—"
+
+                # Status
+                status = t.get("status") or "—"
+
+                # Forma de pagamento
+                pay_method = payment.get("method") or "—"
 
                 results.append({
                     "account":        account_key,
                     "account_label":  label,
-                    "charge_code":    t.get("code") or t.get("id") or "—",
+                    "charge_code":    t.get("id") or "—",
                     "status":         status,
                     "customer":       contact.get("name") or "—",
                     "email":          contact.get("email") or "—",
                     "phone":          f"{phone_code}{phone_num}".strip() or "—",
-                    "offer":          offer.get("name") or product.get("name") or "—",
-                    "created_at":     t.get("confirmed_at") or t.get("created_at") or t.get("approved_at") or "—",
+                    "offer":          offer_name,
+                    "created_at":     confirmed_str,
                     "amount":         amount,
-                    "payment_method": t.get("payment_method") or t.get("payment_type") or t.get("method") or "—",
+                    "payment_method": pay_method,
+                    "charged_times":  charged_times,
                 })
 
             if not cursor or not items:
                 break
 
-        return results, raw_samples
+        return results
 
     def log_message(self, format, *args):
         pass
