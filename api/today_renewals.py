@@ -4,6 +4,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from datetime import date, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import BaseHTTPRequestHandler
 
 GURU_BASE_URL = "https://digitalmanager.guru/api/v2"
@@ -110,11 +111,38 @@ class handler(BaseHTTPRequestHandler):
                     "phone":             f"{phone_code}{phone_num}".strip() or "—",
                     "offer":             (sub.get("product") or {}).get("name") or "—",
                     "next_cycle_at":     sub.get("next_cycle_at") or "—",
-                    "amount":            sub.get("amount") or 0,
+                    "amount":            0,  # será preenchido abaixo
                 })
 
             if not cursor or not items:
                 break
+
+        # Busca next_cycle_value de cada assinatura em paralelo (igual à aba principal)
+        def fetch_detail(item):
+            code = item["subscription_code"]
+            url = f"{GURU_BASE_URL}/subscriptions/{urllib.parse.quote(str(code), safe='')}/"
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    d = json.loads(resp.read().decode())
+                val = d.get("next_cycle_value")
+                if val is not None:
+                    item["amount"] = float(val)
+            except Exception:
+                pass
+            return item
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = {pool.submit(fetch_detail, r): r for r in results}
+            for f in as_completed(futures):
+                pass  # atualiza in-place
 
         return results
 
