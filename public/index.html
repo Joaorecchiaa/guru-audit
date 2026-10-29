@@ -422,6 +422,14 @@ function pipeSortBy(col) {
   renderPipeResults();
 }
 
+let todaySortCol = null;
+let todaySortDir = 'asc';
+function todaySortBy(col) {
+  if (todaySortCol === col) todaySortDir = todaySortDir === 'asc' ? 'desc' : 'asc';
+  else { todaySortCol = col; todaySortDir = 'asc'; }
+  renderTodayRenewals();
+}
+
 // ── Auth MSAL ──
 const AZURE_CLIENT_ID = '85f7de7e-7983-4c0f-92c2-376cfb34df68';
 const AZURE_TENANT_ID = 'ea06a4f8-af74-49ad-ade9-90eedd9d720e';
@@ -969,17 +977,32 @@ function renderTodayRenewals() {
     return map[(m||'').toLowerCase()] || m || '—';
   };
 
-  const thS = 'style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)"';
+  // Ordenação
+  if (todaySortCol) {
+    items = [...items].sort((a, b) => {
+      let va = (a[todaySortCol] ?? '').toString().toLowerCase();
+      let vb = (b[todaySortCol] ?? '').toString().toLowerCase();
+      // numérico para amount
+      if (todaySortCol === 'amount') { va = parseFloat(a.amount) || 0; vb = parseFloat(b.amount) || 0; return todaySortDir === 'asc' ? va - vb : vb - va; }
+      return todaySortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+  }
+
+  const thSort = (key, label) => {
+    const active = todaySortCol === key;
+    const arrow = active ? (todaySortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕';
+    return '<th onclick="todaySortBy(\'' + key + '\')" style="text-align:left;padding:.5rem .75rem;font-size:.7rem;text-transform:uppercase;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;color:' + (active ? 'var(--lime)' : 'var(--muted)') + '">' + label + '<span style="opacity:.6">' + arrow + '</span></th>';
+  };
   const thead = '<thead><tr>' +
-    '<th ' + thS + '>Cliente</th>' +
-    '<th ' + thS + '>Email</th>' +
-    '<th ' + thS + '>Telefone</th>' +
-    '<th ' + thS + '>Produto</th>' +
-    '<th ' + thS + '>Pagamento</th>' +
-    '<th ' + thS + '>Valor</th>' +
-    '<th ' + thS + '>Data Cobrança</th>' +
-    '<th ' + thS + '>Status</th>' +
-    '<th ' + thS + '>Conta</th>' +
+    thSort('customer',       'Cliente') +
+    thSort('email',          'Email') +
+    thSort('phone',          'Telefone') +
+    thSort('offer',          'Produto') +
+    thSort('payment_method', 'Pagamento') +
+    thSort('amount',         'Valor') +
+    thSort('created_at',     'Data Cobrança') +
+    thSort('status',         'Status') +
+    thSort('account_label',  'Conta') +
     '</tr></thead>';
 
   const rows = items.length ? items.map(r => {
@@ -1187,6 +1210,7 @@ function setProgress(pct, label) {
   window.pipeSortBy = pipeSortBy;
   window.loadTodayRenewals = loadTodayRenewals;
   window.onTodaySearch = onTodaySearch;
+  window.todaySortBy = todaySortBy;
   // Delegação de evento para buscar pessoa no Pipedrive por email/telefone
   document.addEventListener('click', async function(e) {
     const el = e.target.closest('.pipe-copy');
