@@ -30,25 +30,27 @@ class handler(BaseHTTPRequestHandler):
 
         all_items = []
         errors = []
+        debug_samples = []  # primeiros itens brutos para diagnóstico
 
         for account_key, token in TOKENS.items():
             if not token:
                 continue
             try:
-                items = self._fetch_all(token, date_from, date_to, account_key)
+                items, raw_samples = self._fetch_all(token, date_from, date_to, account_key)
                 all_items.extend(items)
+                debug_samples.extend(raw_samples)
             except Exception as e:
                 errors.append(f"{account_key}: {str(e)}")
 
-        # Ordena por created_at decrescente (mais recente primeiro)
         all_items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
 
         out = json.dumps({
-            "date_from": date_from,
-            "date_to":   date_to,
-            "total":     len(all_items),
-            "items":     all_items,
-            "errors":    errors,
+            "date_from":     date_from,
+            "date_to":       date_to,
+            "total":         len(all_items),
+            "items":         all_items,
+            "errors":        errors,
+            "_debug_samples": debug_samples,  # remover após diagnóstico
         })
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -57,8 +59,8 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(out.encode())
 
     def _fetch_all(self, token, date_from, date_to, account_key):
-        """Busca charges (transações) de hoje/ontem e filtra pelos valores de renovação."""
         results = []
+        raw_samples = []
         cursor = None
         label = ACCOUNT_LABELS.get(account_key, account_key)
 
@@ -96,24 +98,27 @@ class handler(BaseHTTPRequestHandler):
                 items = []
                 cursor = None
 
-            for charge in items:
-                # Filtra pelo valor de renovação
+            # Guarda até 2 itens brutos por conta para diagnóstico
+            if len(raw_samples) < 2 and items:
+                raw_samples.append({"account": account_key, "sample": items[0]})
+
+            for t in items:
+                # Extrai valor de todos os campos possíveis
                 try:
-                    amount = float(charge.get("amount") or charge.get("total") or 0)
+                    amount = float(
+                        t.get("amount") or t.get("total") or t.get("value") or
+                        t.get("price") or t.get("gross_value") or t.get("net_value") or 0
+                    )
                 except (ValueError, TypeError):
                     amount = 0.0
 
                 if amount not in RENEWAL_AMOUNTS:
                     continue
 
-                # Status da transação
-                status = charge.get("status") or "—"
-
-                t = charge  # transação
+                status = t.get("status") or "—"
                 contact = t.get("contact") or t.get("customer") or t.get("buyer") or {}
                 phone_code = contact.get("phone_local_code", "") or ""
                 phone_num  = contact.get("phone_number", "") or ""
-
                 product = t.get("product") or {}
                 offer   = t.get("offer") or {}
 
@@ -134,7 +139,7 @@ class handler(BaseHTTPRequestHandler):
             if not cursor or not items:
                 break
 
-        return results
+        return results, raw_samples
 
     def log_message(self, format, *args):
         pass
